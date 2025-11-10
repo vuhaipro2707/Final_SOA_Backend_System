@@ -1,0 +1,176 @@
+services:
+  nginx:
+    image: nginx:stable-alpine
+    container_name: chat_nginx
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro 
+    networks:
+      - chat_network
+    depends_on:
+      - api-gateway
+      - websocket-service
+
+  api-gateway:
+    build: 
+      context: ./ApiGateway 
+    container_name: api_gateway
+    expose:
+      - "8081"
+    networks:
+      - chat_network
+    volumes:
+      - ./ApiGateway/app:/app
+      # Tùy chọn: Volume cho các dependency (để tránh ghi đè các thư viện đã cài)
+      - /app/venv
+
+  websocket-service:
+    build:
+      context: ./websocket-service
+    container_name: websocket-service
+    expose:
+      - "8082"
+    networks:
+      - chat_network
+    depends_on:
+      - redis
+      - kafka
+    environment:
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8082
+
+  auth-service:
+    build: 
+      context: ./auth-service
+    container_name: auth-service
+    expose: 
+      - "8083"
+    networks:
+      - chat_network
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chat_db
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      SERVER_PORT: 8083
+
+  # user-management-service:
+  #   build: 
+  #     context: ./user-management-service
+  #   container_name: user_management_service
+  #   expose: 
+  #     - "8084"
+  #   networks:
+  #     - chat_network
+  #   depends_on:
+  #     - postgres
+  #   environment:
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chat_db
+  #     SPRING_DATASOURCE_USERNAME: user
+  #     SPRING_DATASOURCE_PASSWORD: password
+  #     SERVER_PORT: 8084
+
+  # chat-command-service:
+  #   build:
+  #     context: ./chat-command-service
+  #   container_name: chat-command-service
+  #   expose:
+  #     - "8085"
+  #   networks:
+  #     - chat_network
+  #   depends_on:
+  #     - postgres
+  #     - kafka
+  #   environment:
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chat_db
+  #     SPRING_DATASOURCE_USERNAME: user
+  #     SPRING_DATASOURCE_PASSWORD: password
+  #     SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  #     SERVER_PORT: 8085
+
+  # chat-query-service:
+  #   build:
+  #     context: ./chat-query-service
+  #   container_name: chat-query-service
+  #   expose:
+  #     - "8086"
+  #   networks:
+  #     - chat_network
+  #   depends_on:
+  #     - mongodb
+  #     - kafka
+  #   environment:
+  #     SPRING_DATA_MONGODB_HOST: mongodb
+  #     SPRING_DATA_MONGODB_PORT: 27017
+  #     SPRING_DATA_MONGODB_DATABASE: chat_read_db
+  #     SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  #     SERVER_PORT: 8086
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: student_db
+    environment:
+      POSTGRES_DB: chat_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    # volumes:
+    #   - postgres_data:/var/lib/postgresql/data/ # Dùng Named Volume để lưu trữ dữ liệu
+    networks:
+      - chat_network
+
+  mongodb:
+    image: mongo:latest
+    container_name: chat_mongodb
+    # volumes:
+    #   - mongodb_data:/data/db
+    networks:
+      - chat_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    expose:
+      - "6379"
+    networks:
+      - chat_network
+
+  kafka:
+    image: apache/kafka:4.1.0
+    container_name: chat_kafka
+    expose:
+      - "9092"
+    networks:
+      - chat_network
+    volumes:
+      # Volume nên trỏ đến thư mục data tiêu chuẩn của Kafka
+      - kafka_data:/var/lib/kafka/data 
+    environment:
+      # 🚀 Cấu hình KRaft - Sử dụng định dạng biến môi trường Apache
+      KAFKA_PROCESS_ROLES: 'controller,broker' 
+      KAFKA_NODE_ID: 1 
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093' # ⚠️ QUAN TRỌNG: Controller cần cổng riêng (9093)
+      
+      # ⚠️ TẠO CLUSTER ID - CHỈ DÙNG KHI KHỞI TẠO LẦN ĐẦU
+      # Bỏ đi sau lần khởi động đầu tiên nếu bạn muốn nó tự động tạo
+      KAFKA_CLUSTER_ID: "AAAAAAAAAAAAAAAAAAAAAA" 
+      
+      # 🔑 Cấu hình Listeners
+      # Thêm một listener cho Controller (CONTROLLER_LISTENER)
+      KAFKA_LISTENERS: 'PLAINTEXT://:9092,CONTROLLER://:9093'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092'
+      
+      # Địa chỉ cho giao tiếp nội bộ của Controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+
+networks:
+  chat_network:
+    driver: bridge
+
+volumes:
+#   postgres_data:
+#   mongodb_data:
+  kafka_data:
