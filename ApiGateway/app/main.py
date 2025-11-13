@@ -29,6 +29,9 @@ ALGORITHM = "RS256"
 
 SYSTEM_SERVICES = {
     "auth": "http://auth-service:8083",
+    "customer": "http://customer-management-service:8084",
+    "command": "http://chat-command-service:8085",
+    "query": "http://chat-query-service:8086",
 }
 
 client = httpx.AsyncClient(timeout=None)
@@ -193,10 +196,16 @@ async def proxy_requests(path: str, request: Request):
                 detail=f"An unexpected error occurred while processing response from '{service_name}': {e}"
             )
 
+        response_headers = dict(response.headers)
+        if "content-length" in response_headers:
+            del response_headers["content-length"]
+        if "transfer-encoding" in response_headers:
+            del response_headers["transfer-encoding"]
+
         return JSONResponse(
             content=response_content,
             status_code=response.status_code,
-            headers=dict(response.headers)
+            headers=response_headers
         )
         
     except httpx.ConnectError:

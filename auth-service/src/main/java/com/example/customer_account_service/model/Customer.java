@@ -34,9 +34,6 @@ public class Customer implements UserDetails {
     private String phoneNumber;
 
     @Column(nullable = false)
-    private Integer availableBalance = 0;
-
-    @Column(nullable = false)
     private String roles = "ROLE_USER"; 
 
     @Override

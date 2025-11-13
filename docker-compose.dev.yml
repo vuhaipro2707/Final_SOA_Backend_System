@@ -13,7 +13,7 @@ services:
     depends_on:
       - auth-service
       - websocket-service
-      # - user-management-service
+      - customer-management-service
 
   websocket-service:
     build:
@@ -56,69 +56,69 @@ services:
       SPRING_DATASOURCE_PASSWORD: password
       SERVER_PORT: 8083
 
-  # user-management-service:
-  #   build:
-  #     context: ./user-management-service
-  #     dockerfile: Dockerfile.dev
-  #   volumes:
-  #     - ./user-management-service:/app
-  #     - ./.m2cache:/root/.m2
-  #   command: ["mvn", "spring-boot:run"]
-  #   ports:
-  #     - "8084:8084" 
-  #   networks:
-  #     - chat_network
-  #   depends_on:
-  #     - postgres
-  #   environment:
-  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chat_db
-  #     SPRING_DATASOURCE_USERNAME: user
-  #     SPRING_DATASOURCE_PASSWORD: password
-  #     SERVER_PORT: 8084
+  customer-management-service:
+    build:
+      context: ./customer-management-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./customer-management-service:/app
+      - ./.m2cache:/root/.m2
+    command: ["mvn", "spring-boot:run"]
+    ports:
+      - "8084:8084" 
+    networks:
+      - chat_network
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chat_db
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      SERVER_PORT: 8084
 
-  # chat-command-service:
-  #   build:
-  #     context: ./chat-command-service
-  #     dockerfile: Dockerfile.dev
-  #   volumes:
-  #     - ./chat-command-service:/app
-  #     - ./.m2cache:/root/.m2
-  #   command: ["mvn", "spring-boot:run"]
-  #   ports:
-  #     - "8085:8085" 
-  #   networks:
-  #     - chat_network
-  #   depends_on:
-  #     - postgres
-  #     - kafka
-  #   environment:
-  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chat_db
-  #     SPRING_DATASOURCE_USERNAME: user
-  #     SPRING_DATASOURCE_PASSWORD: password
-  #     SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-  #     SERVER_PORT: 8085
+  chat-command-service:
+    build:
+      context: ./chat-command-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./chat-command-service:/app
+      - ./.m2cache:/root/.m2
+    command: ["mvn", "spring-boot:run"]
+    ports:
+      - "8085:8085" 
+    networks:
+      - chat_network
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chat_db
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8085
 
-  # chat-query-service:
-  #   build:
-  #     context: ./chat-query-service
-  #     dockerfile: Dockerfile.dev
-  #   volumes:
-  #     - ./chat-query-service:/app
-  #     - ./.m2cache:/root/.m2
-  #   command: ["mvn", "spring-boot:run"]
-  #   ports:
-  #     - "8086:8086"
-  #   networks:
-  #     - chat_network
-  #   depends_on:
-  #     - mongodb
-  #     - kafka
-  #   environment:
-  #     SPRING_DATA_MONGODB_HOST: mongodb
-  #     SPRING_DATA_MONGODB_PORT: 27017
-  #     SPRING_DATA_MONGODB_DATABASE: chat_read_db
-  #     SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-  #     SERVER_PORT: 8086
+  chat-query-service:
+    build:
+      context: ./chat-query-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./chat-query-service:/app
+      - ./.m2cache:/root/.m2
+    command: ["mvn", "spring-boot:run"]
+    ports:
+      - "8086:8086"
+    networks:
+      - chat_network
+    depends_on:
+      - mongodb
+      - kafka
+    environment:
+      SPRING_DATA_MONGODB_HOST: mongodb
+      SPRING_DATA_MONGODB_PORT: 27017
+      SPRING_DATA_MONGODB_DATABASE: chat_read_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8086
 
 
 networks:

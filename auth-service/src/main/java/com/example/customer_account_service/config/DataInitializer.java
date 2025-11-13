@@ -29,9 +29,9 @@ public class DataInitializer {
                 // 1. Tạo danh sách các khách hàng mẫu
                 List<Customer> initialCustomers = Arrays.asList(
                     // Khách hàng 1: user có vai trò mặc định
-                    createCustomer("user1", "123", "Vũ Thanh Hải", "vuhaipro2707@gmail.com", "0901234567", 5000000, "ROLE_USER"),
-                    createCustomer("user2", "1234", "Huỳnh Đặng Tấn Phát", "vuhaipro1234231@gmail.com", "0918765432", 3000000, "ROLE_USER"),
-                    createCustomer("user3", "12345", "Nguyễn Anh Quốc", "vuhaipro12342312.com", "0987654321", 1000000, "ROLE_USER")
+                    createCustomer("user1", "123", "Vũ Thanh Hải", "vuhaipro2707@gmail.com", "0901234567", "ROLE_USER"),
+                    createCustomer("user2", "1234", "Huỳnh Đặng Tấn Phát", "vuhaipro1234231@gmail.com", "0918765432", "ROLE_USER"),
+                    createCustomer("user3", "12345", "Nguyễn Anh Quốc", "vuhaipro12342312.com", "0987654321", "ROLE_USER")
                 );
 
                 // 2. Lưu toàn bộ danh sách vào cơ sở dữ liệu
@@ -43,14 +43,13 @@ public class DataInitializer {
     }
     
     // Phương thức helper để tạo đối tượng Customer
-    private Customer createCustomer(String username, String rawPassword, String fullName, String email, String phoneNumber, Integer balance, String roles) {
+    private Customer createCustomer(String username, String rawPassword, String fullName, String email, String phoneNumber, String roles) {
         Customer customer = new Customer();
         customer.setUsername(username);
         customer.setPassword(passwordEncoder.encode(rawPassword)); 
         customer.setFullName(fullName);
         customer.setEmail(email);
         customer.setPhoneNumber(phoneNumber);
-        customer.setAvailableBalance(balance);
         customer.setRoles(roles);
         return customer;
     }

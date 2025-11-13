@@ -58,57 +58,57 @@ services:
       SPRING_DATASOURCE_PASSWORD: password
       SERVER_PORT: 8083
 
-  # user-management-service:
-  #   build: 
-  #     context: ./user-management-service
-  #   container_name: user_management_service
-  #   expose: 
-  #     - "8084"
-  #   networks:
-  #     - chat_network
-  #   depends_on:
-  #     - postgres
-  #   environment:
-  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chat_db
-  #     SPRING_DATASOURCE_USERNAME: user
-  #     SPRING_DATASOURCE_PASSWORD: password
-  #     SERVER_PORT: 8084
+  customer-management-service:
+    build: 
+      context: ./customer-management-service
+    container_name: customer_management_service
+    expose: 
+      - "8084"
+    networks:
+      - chat_network
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chat_db
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      SERVER_PORT: 8084
 
-  # chat-command-service:
-  #   build:
-  #     context: ./chat-command-service
-  #   container_name: chat-command-service
-  #   expose:
-  #     - "8085"
-  #   networks:
-  #     - chat_network
-  #   depends_on:
-  #     - postgres
-  #     - kafka
-  #   environment:
-  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chat_db
-  #     SPRING_DATASOURCE_USERNAME: user
-  #     SPRING_DATASOURCE_PASSWORD: password
-  #     SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-  #     SERVER_PORT: 8085
+  chat-command-service:
+    build:
+      context: ./chat-command-service
+    container_name: chat-command-service
+    expose:
+      - "8085"
+    networks:
+      - chat_network
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chat_db
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8085
 
-  # chat-query-service:
-  #   build:
-  #     context: ./chat-query-service
-  #   container_name: chat-query-service
-  #   expose:
-  #     - "8086"
-  #   networks:
-  #     - chat_network
-  #   depends_on:
-  #     - mongodb
-  #     - kafka
-  #   environment:
-  #     SPRING_DATA_MONGODB_HOST: mongodb
-  #     SPRING_DATA_MONGODB_PORT: 27017
-  #     SPRING_DATA_MONGODB_DATABASE: chat_read_db
-  #     SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-  #     SERVER_PORT: 8086
+  chat-query-service:
+    build:
+      context: ./chat-query-service
+    container_name: chat-query-service
+    expose:
+      - "8086"
+    networks:
+      - chat_network
+    depends_on:
+      - mongodb
+      - kafka
+    environment:
+      SPRING_DATA_MONGODB_HOST: mongodb
+      SPRING_DATA_MONGODB_PORT: 27017
+      SPRING_DATA_MONGODB_DATABASE: chat_read_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8086
 
   postgres:
     image: postgres:15-alpine
@@ -130,6 +130,33 @@ services:
     networks:
       - chat_network
 
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_ui
+    ports:
+      - "5050:80" 
+    environment:
+      PGADMIN_DEFAULT_EMAIL: user@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: pass
+    networks:
+      - chat_network
+    depends_on:
+      - postgres
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo_express_ui
+    ports:
+      - "8087:8081" 
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb 
+      ME_CONFIG_BASICAUTH_USERNAME: user
+      ME_CONFIG_BASICAUTH_PASSWORD: pass
+    networks:
+      - chat_network
+    depends_on:
+      - mongodb
+
   redis:
     image: redis:7-alpine
     container_name: redis_cache
@@ -146,25 +173,22 @@ services:
     networks:
       - chat_network
     volumes:
-      # Volume nên trỏ đến thư mục data tiêu chuẩn của Kafka
       - kafka_data:/var/lib/kafka/data 
     environment:
-      # 🚀 Cấu hình KRaft - Sử dụng định dạng biến môi trường Apache
       KAFKA_PROCESS_ROLES: 'controller,broker' 
       KAFKA_NODE_ID: 1 
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093' # ⚠️ QUAN TRỌNG: Controller cần cổng riêng (9093)
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093' 
       
-      # ⚠️ TẠO CLUSTER ID - CHỈ DÙNG KHI KHỞI TẠO LẦN ĐẦU
-      # Bỏ đi sau lần khởi động đầu tiên nếu bạn muốn nó tự động tạo
       KAFKA_CLUSTER_ID: "AAAAAAAAAAAAAAAAAAAAAA" 
       
-      # 🔑 Cấu hình Listeners
-      # Thêm một listener cho Controller (CONTROLLER_LISTENER)
       KAFKA_LISTENERS: 'PLAINTEXT://:9092,CONTROLLER://:9093'
       KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092'
       
-      # Địa chỉ cho giao tiếp nội bộ của Controller
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
 
 networks:
   chat_network:
