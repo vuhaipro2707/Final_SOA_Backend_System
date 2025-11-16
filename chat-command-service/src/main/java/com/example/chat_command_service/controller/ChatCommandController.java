@@ -1,6 +1,7 @@
 package com.example.chat_command_service.controller;
 
 import com.example.chat_command_service.dto.SendMessageRequest;
+import com.example.chat_command_service.dto.UpdateReadMarkerRequest;
 import com.example.chat_command_service.service.ChatCommandService;
 import com.example.chat_command_service.dto.CreateRoomRequest;
 import com.example.chat_command_service.model.Room;
@@ -64,5 +65,28 @@ public class ChatCommandController {
         );
 
         return ResponseEntity.ok(GenericResponse.success("Room command (Write) processed and event published successfully.", newRoom.getRoomId()));
+    }
+
+    @PostMapping("/read") 
+    public ResponseEntity<GenericResponse<Void>> updateReadMarker(@RequestBody UpdateReadMarkerRequest request, Authentication authentication) {
+        if (request.getRoomId() == null || request.getMessageId() == null) {
+            return ResponseEntity.badRequest().body(GenericResponse.failure("roomId and messageId cannot be empty."));
+        }
+        
+        try {
+            Long customerId = Long.parseLong(authentication.getPrincipal().toString());
+            
+            chatCommandService.processReadMarkerUpdate(
+                request.getRoomId(), 
+                customerId, 
+                request.getMessageId()
+            );
+
+            return ResponseEntity.ok(GenericResponse.success("Read Marker command (Write) processed and event published successfully."));
+        } catch (NumberFormatException e) {
+             return ResponseEntity.status(400).body(GenericResponse.failure("Invalid customer ID format in authentication context."));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(GenericResponse.failure("An internal error occurred: " + e.getMessage()));
+        }
     }
 }

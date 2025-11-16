@@ -7,6 +7,7 @@ import com.example.chat_command_service.repository.MessageRepository;
 import com.example.chat_command_service.repository.RoomParticipantRepository;
 import com.example.chat_command_service.repository.RoomRepository;
 import com.example.chat_command_service.kafka.dto.MessageSentEvent;
+import com.example.chat_command_service.kafka.dto.ReadMarkerEvent;
 import com.example.chat_command_service.kafka.dto.RoomCreatedEvent;
 import com.example.chat_command_service.kafka.dto.RoomCreatedEvent.ParticipantDTO;
 import com.example.chat_command_service.kafka.KafkaProducerService;
@@ -116,6 +117,19 @@ public class ChatCommandService {
         return room;
     }
 
+    @Transactional
+    public void processReadMarkerUpdate(Long roomId, Long customerId, Long messageId) {
+        roomParticipantRepository.updateLastReadMessageId(roomId, customerId, messageId);
+        
+        System.out.println("--- Updated RoomParticipant for Customer ID " + customerId + " in Room ID " + roomId + " to Message ID " + messageId);
+        
+        ReadMarkerEvent event = new ReadMarkerEvent(roomId, customerId, messageId);
+        
+        kafkaProducerService.sendReadMarkerEvent(event);
+        
+        System.out.println("--- Processed Read Marker Update for Customer ID " + customerId + " in Room ID " + roomId + " with Message ID " + messageId);
+    }
+
     private Mono<GenericResponse<String>> createGetCustomerFullNameMono(Long customerId) {
         return webClient.get()
             .uri(CUSTOMER_SERVICE_BASE_URL + "/fullName/customerId/" + customerId) 
@@ -150,6 +164,4 @@ public class ChatCommandService {
             throw new RuntimeException("Failed to retrieve user information for ID: " + customerId, e);
         }
     }
-    
-    // TODO: Các phương thức khác như updateLastReadMarker sẽ được thêm vào đây
 }

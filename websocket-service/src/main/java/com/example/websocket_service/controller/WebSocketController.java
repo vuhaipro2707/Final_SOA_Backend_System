@@ -6,13 +6,26 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 // import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.stereotype.Controller;
 
+import com.example.websocket_service.service.OnlineStatusService;
+
 @Controller
 public class WebSocketController {
+
+    private final OnlineStatusService onlineStatusService;
+
+    public WebSocketController(OnlineStatusService onlineStatusService) {
+        this.onlineStatusService = onlineStatusService;
+    }
 
     @MessageMapping("/echo")
     @SendTo("/topic/echo") 
     public String echoMessage(String message, SimpMessageHeaderAccessor headerAccessor) {
         String customerId = headerAccessor.getUser().getName();
         return "Server echoed (ID: " + customerId + "): " + message;
+    }
+
+    @MessageMapping("/extendOnline")
+    public void extendOnline(Long customerId) {
+        onlineStatusService.extendOnline(customerId);
     }
 }

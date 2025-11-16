@@ -1,6 +1,7 @@
 package com.example.chat_query_service.kafka;
 
 import com.example.chat_query_service.kafka.dto.MessageSentEvent;
+import com.example.chat_query_service.kafka.dto.ReadMarkerEvent;
 import com.example.chat_query_service.kafka.dto.RoomCreatedEvent;
 import com.example.chat_query_service.service.ChatProjectionService;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -38,6 +39,19 @@ public class KafkaConsumerService {
             projectionService.handleMessageSentEvent(event);
         } catch (Exception e) {
             System.err.println("Error processing MessageSentEvent for Message ID " + event.getMessageId() + ": " + e.getMessage());
+        }
+    }
+
+    @KafkaListener(
+        topics = "${spring.kafka.topics.read-marker-updated}", 
+        groupId = "${spring.kafka.consumer.group-id-read-marker}",
+        containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void handleReadMarker(ReadMarkerEvent event) {
+        try {
+            projectionService.handleReadMarkerEvent(event);
+        } catch (Exception e) {
+            System.err.println("Error processing ReadMarkerEvent for Room ID " + event.getRoomId() + ", Customer ID " + event.getCustomerId() + ": " + e.getMessage());
         }
     }
 }

@@ -101,12 +101,15 @@ services:
     networks:
       - chat_network
     depends_on:
+      - redis
       - mongodb
       - kafka
     environment:
       SPRING_DATA_MONGODB_HOST: mongodb
       SPRING_DATA_MONGODB_PORT: 27017
       SPRING_DATA_MONGODB_DATABASE: chat_read_db
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SERVER_PORT: 8086
 
@@ -130,32 +133,35 @@ services:
     networks:
       - chat_network
 
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin_ui
+  # === THAY THẾ pgadmin BẰNG Adminer (PostgreSQL/SQL UI đơn giản) ===
+  adminer_postgres:
+    image: adminer
+    container_name: adminer_postgres_ui
     ports:
-      - "5050:80" 
-    environment:
-      PGADMIN_DEFAULT_EMAIL: user@gmail.com
-      PGADMIN_DEFAULT_PASSWORD: pass
+      - "8088:8080" # Truy cập: http://localhost:8088
     networks:
       - chat_network
     depends_on:
       - postgres
+    # Giao diện đơn giản hơn, không cần đăng nhập UI, chỉ cần nhập thông tin kết nối DB.
+    # Thông tin kết nối: System: PostgreSQL, Server: postgres, Username: user, Password: password, Database: chat_db
 
+  # === THAY ĐỔI mongo-express ĐỂ BỎ QUA ĐĂNG NHẬP UI (MongoDB UI) ===
   mongo-express:
     image: mongo-express
     container_name: mongo_express_ui
     ports:
-      - "8087:8081" 
+      - "8087:8081" # Truy cập: http://localhost:8087
     environment:
       ME_CONFIG_MONGODB_SERVER: mongodb 
-      ME_CONFIG_BASICAUTH_USERNAME: user
-      ME_CONFIG_BASICAUTH_PASSWORD: pass
+      # Vô hiệu hóa Basic Authentication của giao diện Mongo Express (truy cập trực tiếp)
+      ME_CONFIG_BASICAUTH_USERNAME: "1"
+      ME_CONFIG_BASICAUTH_PASSWORD: "1"
     networks:
       - chat_network
     depends_on:
       - mongodb
+  # =================================================================
 
   redis:
     image: redis:7-alpine

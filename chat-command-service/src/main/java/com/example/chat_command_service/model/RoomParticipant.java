@@ -7,7 +7,12 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 
 @Entity
-@Table(name = "room_participants")
+@Table(
+    name = "room_participants",
+    indexes = {
+        @Index(name = "idx_room_customer", columnList = "roomId, customerId", unique = true) 
+    }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
