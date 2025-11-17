@@ -17,7 +17,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
-import java.util.List;
+// import java.util.List;
 
 @Component
 public class AuthChannelInterceptor implements ChannelInterceptor {
@@ -25,7 +25,65 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
     @Autowired
     private JwtDecoder jwtDecoder;
 
-    @Override
+    // @Override // For Production (use Cookie to store JWT)
+    // public Message<?> preSend(Message<?> message, MessageChannel channel) {
+    //     System.err.println("Intercepting WebSocket message for authentication.");
+    //     System.err.flush();
+    //     StompHeaderAccessor accessor = 
+    //         MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+        
+    //     if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+            
+    //         List<String> cookieHeaders = accessor.getNativeHeader("Cookie");
+    //         String jwtToken = null;
+            
+    //         if (cookieHeaders != null && !cookieHeaders.isEmpty()) {
+    //             for (String cookieHeader : cookieHeaders) {
+    //                 String[] cookies = cookieHeader.split(";\\s*");
+    //                 for (String cookie : cookies) {
+    //                     if (cookie.startsWith("jwt_token=")) {
+    //                         jwtToken = cookie.substring("jwt_token=".length());
+    //                         break;
+    //                     }
+    //                 }
+    //                 if (jwtToken != null) break;
+    //             }
+    //         }
+
+    //         if (jwtToken == null) {
+    //             System.err.println("Authentication failed: JWT token not found in Cookie.");
+    //             throw new SecurityException("No authentication cookie.");
+    //         }
+
+    //         try {
+    //             Jws<Claims> jws = jwtDecoder.parseToken(jwtToken);
+    //             String customerId = jws.getBody().get("customerId", String.class);
+                
+    //             if (customerId == null) {
+    //                 throw new SecurityException("Invalid JWT claims: Missing customerId.");
+    //             }
+
+    //             Authentication authentication = new UsernamePasswordAuthenticationToken(
+    //                 customerId, 
+    //                 null,
+    //                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+    //             );
+
+    //             accessor.setUser(authentication);
+
+    //         } catch (JwtException e) {
+    //             System.err.println("Authentication failed: Invalid JWT token. Reason: " + e.getMessage());
+    //             throw new SecurityException("Invalid authentication token.");
+    //         } catch (Exception e) {
+    //             System.err.println("Authentication failed: General error: " + e.getMessage());
+    //             throw new SecurityException("Authentication failed due to internal error.");
+    //         }
+    //     }
+        
+    //     return message;
+    // }
+
+    @Override // For Testing (JwT through STOMP Header)
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         System.err.println("Intercepting WebSocket message for authentication.");
         System.err.flush();
@@ -33,26 +91,11 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
             MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
         
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-            
-            List<String> cookieHeaders = accessor.getNativeHeader("Cookie");
-            String jwtToken = null;
-            
-            if (cookieHeaders != null && !cookieHeaders.isEmpty()) {
-                for (String cookieHeader : cookieHeaders) {
-                    String[] cookies = cookieHeader.split(";\\s*");
-                    for (String cookie : cookies) {
-                        if (cookie.startsWith("jwt_token=")) {
-                            jwtToken = cookie.substring("jwt_token=".length());
-                            break;
-                        }
-                    }
-                    if (jwtToken != null) break;
-                }
-            }
+            String jwtToken = accessor.getFirstNativeHeader("jwt_token");
 
             if (jwtToken == null) {
-                System.err.println("Authentication failed: JWT token not found in Cookie.");
-                throw new SecurityException("No authentication cookie.");
+                System.err.println("Authentication failed: JWT token not found in STOMP header.");
+                throw new SecurityException("No authentication token."); 
             }
 
             try {

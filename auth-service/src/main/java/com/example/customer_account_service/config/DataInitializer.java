@@ -29,9 +29,9 @@ public class DataInitializer {
                 // 1. Tạo danh sách các khách hàng mẫu
                 List<Customer> initialCustomers = Arrays.asList(
                     // Khách hàng 1: user có vai trò mặc định
-                    createCustomer("user1", "123", "Vũ Thanh Hải", "vuhaipro2707@gmail.com", "0901234567", "ROLE_USER"),
-                    createCustomer("user2", "1234", "Huỳnh Đặng Tấn Phát", "vuhaipro1234231@gmail.com", "0918765432", "ROLE_USER"),
-                    createCustomer("user3", "12345", "Nguyễn Anh Quốc", "vuhaipro12342312.com", "0987654321", "ROLE_USER")
+                    createCustomer("user1", "123", "Vũ Thanh Hải", "vuhaipro2707@gmail.com", "0901234567", "ROLE_USER", "#4CAF50"), 
+                    createCustomer("user2", "1234", "Huỳnh Đặng Tấn Phát", "vuhaipro1234231@gmail.com", "0918765432", "ROLE_USER", "#2196F3"),
+                    createCustomer("user3", "12345", "Nguyễn Anh Quốc", "vuhaipro12342312.com", "0987654321", "ROLE_USER", "#FF9800")
                 );
 
                 // 2. Lưu toàn bộ danh sách vào cơ sở dữ liệu
@@ -43,7 +43,7 @@ public class DataInitializer {
     }
     
     // Phương thức helper để tạo đối tượng Customer
-    private Customer createCustomer(String username, String rawPassword, String fullName, String email, String phoneNumber, String roles) {
+    private Customer createCustomer(String username, String rawPassword, String fullName, String email, String phoneNumber, String roles, String avatarColor) {
         Customer customer = new Customer();
         customer.setUsername(username);
         customer.setPassword(passwordEncoder.encode(rawPassword)); 
@@ -51,6 +51,7 @@ public class DataInitializer {
         customer.setEmail(email);
         customer.setPhoneNumber(phoneNumber);
         customer.setRoles(roles);
+        customer.setAvatarColor(avatarColor);
         return customer;
     }
 }

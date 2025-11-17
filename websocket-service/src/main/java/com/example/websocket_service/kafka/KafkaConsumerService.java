@@ -1,7 +1,11 @@
 package com.example.websocket_service.kafka;
 
+import com.example.websocket_service.document.ChatRoomView;
 import com.example.websocket_service.kafka.dto.MessageSentEvent;
 import com.example.websocket_service.kafka.dto.ReadMarkerEvent;
+import com.example.websocket_service.kafka.dto.ReadStatusUpdateEvent;
+
+import java.util.List;
 
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -13,6 +17,35 @@ public class KafkaConsumerService {
 
     public KafkaConsumerService(SimpMessagingTemplate messagingTemplate) {
         this.messagingTemplate = messagingTemplate;
+    }
+
+    @KafkaListener(
+        topics = "${spring.kafka.topics.room-updated}",
+        groupId = "${spring.kafka.consumer.group-id}",
+        containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void handleRoomUpdate(ChatRoomView roomView) { 
+        try {
+            System.out.println("--- Đã nhận sự kiện RoomUpdatedEvent (View) từ Kafka cho Room ID: " + roomView.getRoomId());
+            List<Long> participantIds = roomView.getParticipantIds(); 
+
+            if (participantIds == null || participantIds.isEmpty()) {
+                 System.err.println("RoomUpdatedEvent: Participant list is empty for room " + roomView.getRoomId());
+                 return;
+            }
+
+            for (Long customerId : participantIds) {
+                String destination = "/topic/rooms"; 
+                messagingTemplate.convertAndSendToUser(
+                    String.valueOf(customerId), 
+                    destination, 
+                    roomView
+                );
+            }
+
+        } catch (Exception e) {
+            System.err.println("Lỗi khi xử lý RoomUpdatedEvent (View): " + e.getMessage());
+        }
     }
 
     @KafkaListener(
@@ -50,6 +83,25 @@ public class KafkaConsumerService {
 
         } catch (Exception e) {
             System.err.println("Lỗi khi xử lý ReadMarkerEvent: " + e.getMessage());
+        }
+    }
+
+    @KafkaListener(
+        topics = "${spring.kafka.topics.read-status-updated}",
+        groupId = "${spring.kafka.consumer.group-id}",
+        containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void handleReadStatusUpdate(ReadStatusUpdateEvent event) {
+        try {
+            System.out.println("--- Đã nhận sự kiện ReadStatusUpdateEvent (View) từ Kafka cho Room ID: " + event.getRoomId());
+            
+            messagingTemplate.convertAndSendToUser(
+                event.getCustomerId().toString(),
+                "/topic/readStatus",
+                event
+            );
+        } catch (Exception e) {
+            System.err.println("Lỗi khi xử lý ReadStatusUpdateEvent (View): " + e.getMessage());
         }
     }
 }

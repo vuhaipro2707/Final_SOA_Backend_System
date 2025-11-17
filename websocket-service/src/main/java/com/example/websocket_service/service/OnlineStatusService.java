@@ -1,7 +1,7 @@
 package com.example.websocket_service.service;
 
 import com.example.websocket_service.dto.UserOnlineStatus;
-import com.example.websocket_service.document.ChatRoomViewDTO;
+import com.example.websocket_service.document.ChatRoomView;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class OnlineStatusService {
 
     private static final String REDIS_ONLINE_KEY_PREFIX = "online_user:";
-    private static final long TTL_SECONDS = 300; // 5 minutes
+    private static final long TTL_SECONDS = 120; // 2 minutes
     private static final String CHAT_QUERY_SERVICE_BASE_URL = "http://chat-query-service:8086";
 
     private final StringRedisTemplate redisTemplate;
@@ -57,16 +57,16 @@ public class OnlineStatusService {
     private List<Long> getRoomIdsForUser(Long customerId) {
         String uri = CHAT_QUERY_SERVICE_BASE_URL + "/internal/rooms/customer/" + customerId;
         try {
-            GenericResponse<List<ChatRoomViewDTO>> response = webClient.get()
+            GenericResponse<List<ChatRoomView>> response = webClient.get()
                 .uri(uri)
                 .header("X-Customer-Id", String.valueOf(customerId)) 
                 .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<GenericResponse<List<ChatRoomViewDTO>>>() {})
+                .bodyToMono(new ParameterizedTypeReference<GenericResponse<List<ChatRoomView>>>() {})
                 .block();
 
             if (response != null && response.isSuccess() && response.getData() != null) {
                 return response.getData().stream()
-                        .map(ChatRoomViewDTO::getRoomId)
+                        .map(ChatRoomView::getRoomId)
                         .collect(Collectors.toList());
             }
             System.err.println("Failed to fetch rooms from chat-query-service for customer " + customerId + ". Message: " + (response != null ? response.getMessage() : "No response body."));

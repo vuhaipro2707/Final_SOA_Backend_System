@@ -50,11 +50,10 @@ public class AuthController {
         String jwt = tokenProvider.generateToken(authentication);
         Cookie cookie = new Cookie("jwt_token", jwt);
         
-        cookie.setHttpOnly(true); 
+        cookie.setHttpOnly(false); // For Testing purpose
         // cookie.setSecure(true);
         cookie.setPath("/");      
         cookie.setMaxAge(86400); // 24 giờ
-        
         response.addCookie(cookie);
 
         return ResponseEntity.ok(new LoginResponse("Login successful", "JWT token set in HttpOnly Cookie."));
@@ -63,7 +62,7 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<LoginResponse> logoutUser(HttpServletResponse response) {
         Cookie cookie = new Cookie("jwt_token", null); 
-        cookie.setHttpOnly(true);
+        cookie.setHttpOnly(false); // For Testing purpose
         // cookie.setSecure(true);
         cookie.setPath("/");
         cookie.setMaxAge(0); // Xóa Cookie

@@ -3,11 +3,11 @@ package com.example.chat_query_service.document;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
-// import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Document(collection = "chatRoomViews")
@@ -21,6 +21,8 @@ public class ChatRoomView {
 
     
     private List<Long> participantIds;
+
+    private Map<Long, Boolean> unreadStatus;
 
     private LastMessageInfo lastMessage;
 

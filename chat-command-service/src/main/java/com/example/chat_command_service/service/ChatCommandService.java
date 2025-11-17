@@ -93,7 +93,6 @@ public class ChatCommandService {
             participant.setRoomId(newRoomId);
             participant.setCustomerId(customerId);
             participant.setJoinedAt(now);
-            // TODO: Thêm bước cập nhật lastReadMessageId
             participant.setLastReadMessageId(null);
             participants.add(participant);
             

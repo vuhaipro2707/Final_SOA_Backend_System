@@ -27,5 +27,8 @@ public class Customer {
     @Column(unique = true)
     private String phoneNumber; 
 
+    @Column(nullable = false)
+    private String avatarColor;
+
     private String roles = "ROLE_USER"; 
 }

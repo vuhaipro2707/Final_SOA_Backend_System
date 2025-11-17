@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <!-- 1. Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 2. Thư viện WebSocket: SockJS và Stomp.js -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <!-- 3. Thư viện Icons (Lucide) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* CSS tùy chỉnh cho giao diện */
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Tùy chỉnh thanh cuộn cho đẹp (Webkit browsers) */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c0c0c0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a0a0a0;
+        }
+
+        /* Lớp cho item phòng chat được chọn */
+        .room-item.selected {
+            background-color: #e0e7ff; /* bg-indigo-100 */
+        }
+
+        /* Xóa flex-col-reverse để tin nhắn hiển thị theo thứ tự từ cũ đến mới */
+        #message-list {
+            display: flex;
+            flex-direction: column; /* Thay vì flex-col-reverse */
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- ========== TRANG ĐĂNG NHẬP ========== -->
+    <div id="login-page" class="flex items-center justify-center min-h-screen bg-gray-200">
+        <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg">
+            <h1 class="text-3xl font-bold text-center text-gray-800">Đăng nhập Chat</h1>
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700">Tên đăng nhập</label>
+                    <input id="username" name="username" type="text" required value="user1"
+                           class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Mật khẩu</label>
+                    <input id="password" name="password" type="password" required value="123"
+                           class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <button type="submit"
+                        class="w-full px-4 py-2 font-semibold text-white bg-indigo-600 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out">
+                    Đăng nhập
+                </button>
+                <p id="login-error" class="text-sm text-center text-red-600 hidden"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========== TRANG CHAT CHÍNH ========== -->
+    <div id="chat-page" class="hidden h-screen w-screen overflow-hidden flex bg-white">
+        
+        <!-- === CỘT BÊN TRÁI (DANH SÁCH PHÒNG) === -->
+        <aside id="sidebar" class="w-full md:w-1/3 lg:w-1/4 h-full flex flex-col border-r border-gray-200 bg-gray-50">
+            <!-- Header cột trái: Thông tin user và nút tạo phòng -->
+            <header class="p-4 border-b border-gray-200 flex items-center justify-between">
+                <div id="user-profile" class="flex items-center gap-3 cursor-pointer hover:bg-gray-100 rounded-lg p-2 -m-2 transition-colors">
+                    <div id="current-user-avatar" class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold flex-shrink-0" style="background-color: #6366f1">
+                        U
+                    </div>
+                    <div>
+                        <h2 id="current-user-name" class="font-semibold text-gray-800">Đang tải...</h2>
+                        <p id="current-user-id" class="text-xs text-gray-500">ID: ...</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="create-room-btn" title="Tạo phòng mới"
+                            class="p-2 text-gray-600 rounded-full hover:bg-gray-200 hover:text-gray-900 transition-colors">
+                        <i data-lucide="plus-square"></i>
+                    </button>
+                    <button id="logout-btn" title="Đăng xuất"
+                            class="p-2 text-gray-600 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors">
+                        <i data-lucide="log-out"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Thanh tìm kiếm (tùy chọn) -->
+            <div class="p-3 border-b border-gray-200">
+                <input id="room-search-input" type="text" placeholder="Tìm kiếm đoạn chat..."
+                       class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-full focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            </div>
+
+            <!-- Danh sách phòng chat -->
+            <div id="room-list" class="flex-1 overflow-y-auto">
+                <!-- Các item phòng chat sẽ được render bởi JS vào đây -->
+                <!-- Mẫu 1 item:
+                <div class="room-item flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-100 border-b border-gray-100" data-room-id="123">
+                    <img src="https://placehold.co/48x48/7c3aed/white?text=R" alt="Room Avatar" class="w-12 h-12 rounded-full bg-purple-600">
+                    <div class="flex-1 overflow-hidden">
+                        <div class="flex justify-between items-baseline">
+                            <h3 class="room-name font-semibold text-gray-800 truncate">Tên phòng chat</h3>
+                            <span class="room-timestamp text-xs text-gray-500 ml-2 flex-shrink-0">10:30 SA</span>
+                        </div>
+                        <p class="last-message text-sm text-gray-600 truncate">Đây là tin nhắn cuối cùng...</p>
+                    </div>
+                </div>
+                -->
+            </div>
+        </aside>
+
+        <!-- === CỘT BÊN PHẢI (KHUNG CHAT) === -->
+        <main id="chat-window" class="flex-1 h-full flex flex-col">
+            <!-- Trạng thái chờ: Khi chưa chọn phòng -->
+            <div id="welcome-message" class="flex-1 flex flex-col items-center justify-center text-center p-10">
+                <i data-lucide="messages-square" class="w-24 h-24 text-gray-300"></i>
+                <h2 class="mt-4 text-2xl font-semibold text-gray-700">Chào mừng bạn!</h2>
+                <p class="mt-2 text-gray-500">Hãy chọn 1 nhóm để trò chuyện ngay.</p>
+            </div>
+
+            <!-- Trạng thái chat: Khi đã chọn phòng -->
+            <div id="active-chat" class="hidden flex-1 flex flex-col h-full">
+                <!-- Header phòng chat -->
+                <header class="p-4 flex items-center justify-between border-b border-gray-200 bg-white shadow-sm z-10">
+                    <div class="flex items-center gap-3">
+                        <img id="chat-header-avatar" src="https://placehold.co/40x40/10b981/white?text=G" alt="Group Avatar" class="w-10 h-10 rounded-full bg-emerald-500">
+                        <div>
+                            <h2 id="chat-header-name" class="text-lg font-semibold text-gray-900">Tên phòng chat</h2>
+                            <p id="chat-header-status" class="text-xs text-green-500">... đang hoạt động</p>
+                        </div>
+                    </div>
+                    <button id="chat-info-btn" class="p-2 text-gray-500 rounded-full hover:bg-gray-100">
+                        <i data-lucide="info"></i>
+                    </button>
+                </header>
+
+                <!-- Nơi chứa tin nhắn (tin cũ ở trên, tin mới ở dưới) -->
+                <div id="message-list" class="flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-gray-100">
+                    <!-- 
+                        Các tin nhắn sẽ được JS chèn vào đây.
+                        Thứ tự hiển thị: tin cũ ở trên, tin mới ở dưới
+                        - appendMessage: insertAdjacentHTML('beforeend') -> Thêm tin mới vào cuối
+                        - prependMessage: insertAdjacentHTML('afterbegin') -> Thêm tin cũ vào đầu
+                    -->
+                    
+                    <!-- Mẫu tin nhắn CỦA TÔI (bên phải) -->
+                    <!--
+                    <div class="message-item flex justify-end" data-message-id="msg1">
+                        <div class="message-bubble-mine max-w-xs lg:max-w-md p-3 rounded-t-2xl rounded-l-2xl bg-indigo-600 text-white shadow">
+                            <p class="text-sm">Đây là tin nhắn của tôi.</p>
+                            <span class="block text-xs text-indigo-200 text-right mt-1">10:31 SA</span>
+                        </div>
+                    </div>
+                    -->
+
+                    <!-- Mẫu tin nhắn CỦA NGƯỜI KHÁC (bên trái) -->
+                    <!--
+                    <div class="message-item flex justify-start" data-message-id="msg2">
+                        <img src="https://placehold.co/32x32/f97316/white?text=A" alt="Avatar" class="w-8 h-8 rounded-full self-end mr-2">
+                        <div class="message-bubble-theirs max-w-xs lg:max-w-md p-3 rounded-t-2xl rounded-r-2xl bg-white text-gray-800 shadow">
+                            <p class="text-sm font-semibold text-orange-600 mb-1">Tên người gửi</p>
+                            <p class="text-sm">Đây là tin nhắn của người khác.</p>
+                            <span class="block text-xs text-gray-500 text-right mt-1">10:32 SA</span>
+                        </div>
+                    </div>
+                    -->
+
+                    <!-- Mẫu đánh dấu đã đọc -->
+                    <!--
+                    <div class="read-marker flex justify-end items-center gap-1 w-full pr-2" data-user-id="user2">
+                        <p class="text-xs text-gray-500">Đã xem bởi Huỳnh Đặng Tấn Phát</p>
+                        <img src="https://placehold.co/16x16/f97316/white?text=P" class="w-4 h-4 rounded-full">
+                    </div>
+                    -->
+
+                </div>
+
+                <!-- Hiển thị ai đang gõ -->
+                <div id="typing-indicator" class="hidden px-4 py-2 bg-gray-50 border-t border-gray-200">
+                    <p class="text-sm text-gray-600 italic">
+                        <span id="typing-users-text"></span> đang gõ...
+                    </p>
+                </div>
+
+                <!-- Khung nhập tin nhắn -->
+                <form id="message-form" class="p-4 flex items-center gap-3 bg-white border-t border-gray-200">
+                    <input id="message-input" type="text" placeholder="Nhập tin nhắn..." autocomplete="off"
+                           class="flex-1 px-4 py-2 bg-gray-100 border border-gray-200 rounded-full focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                    <button type="submit"
+                            class="p-2 text-white bg-indigo-600 rounded-full shadow-md hover:bg-indigo-700 transition-colors">
+                        <i data-lucide="send"></i>
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    </div>
+    </div>
+
+    <!-- ========== MODAL THÔNG TIN PHÒNG ========== -->
+    <div id="room-info-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 m-4" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Thông tin phòng</h3>
+                <button id="close-room-info-btn" class="text-gray-400 hover:text-gray-600">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div id="room-members-list" class="space-y-3 max-h-96 overflow-y-auto">
+                <!-- Danh sách thành viên sẽ được render bởi JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MODAL EDIT THÔNG TIN USER ========== -->
+    <div id="edit-profile-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 m-4" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Chỉnh sửa thông tin</h3>
+                <button id="close-edit-profile-btn" class="text-gray-400 hover:text-gray-600">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="edit-profile-form" class="space-y-4">
+                <div>
+                    <label for="edit-fullname" class="block text-sm font-medium text-gray-700">Họ và tên</label>
+                    <input id="edit-fullname" type="text" required
+                           class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label for="edit-email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input id="edit-email" type="email" required
+                           class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label for="edit-phone" class="block text-sm font-medium text-gray-700">Số điện thoại</label>
+                    <input id="edit-phone" type="text" required
+                           class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label for="edit-avatar-color" class="block text-sm font-medium text-gray-700">Màu avatar</label>
+                    <input id="edit-avatar-color" type="color" required
+                           class="w-full h-10 mt-1 border border-gray-300 rounded-md cursor-pointer">
+                </div>
+                <p id="edit-profile-error" class="text-sm text-red-600 hidden"></p>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" id="cancel-edit-profile-btn"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50">
+                        Hủy
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md shadow-sm hover:bg-indigo-700">
+                        Lưu
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========== MODAL TẠO PHÒNG MỚI ========== -->
+    <div id="create-room-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 m-4" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Tạo phòng chat mới</h3>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="create-room-form">
+                <div class="space-y-4">
+                    <div>
+                        <label for="room-name-input" class="block text-sm font-medium text-gray-700">Tên phòng</label>
+                        <input id="room-name-input" type="text" required
+                               class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label for="user-search-input" class="block text-sm font-medium text-gray-700">Mời thành viên</label>
+                        <div class="flex gap-2 mb-2">
+                            <input id="user-search-input" type="text" placeholder="Nhập số điện thoại..."
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <button type="button" id="fetch-user-btn" 
+                                    class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none">
+                                Tìm
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <!-- Dropdown kết quả tìm kiếm -->
+                            <div id="user-search-results" class="hidden absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                                <!-- Kết quả tìm kiếm sẽ được render vào đây -->
+                            </div>
+                        </div>
+                        <!-- Danh sách đã chọn -->
+                        <div id="selected-users-list" class="mt-3 space-y-2">
+                            <!-- User đã chọn sẽ hiển thị ở đây -->
+                        </div>
+                    </div>
+                    <p id="create-room-error" class="text-sm text-red-600 hidden"></p>
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" id="cancel-modal-btn"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50">
+                        Hủy
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md shadow-sm hover:bg-indigo-700">
+                        Tạo phòng
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- ========== LOGIC JAVASCRIPT ========== -->
+    <script>
+        // Kích hoạt icons
+        lucide.createIcons();
+
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // === 1. BIẾN TOÀN CỤC VÀ HẰNG SỐ ===
+            const API_URL = 'http://localhost:8080'; // URL của Nginx Gateway
+            
+            let stompClient = null;
+            let currentUser = null; // { customerId, fullName, ... }
+            let currentRoomId = null;
+            let allRooms = new Map(); // Dùng Map để dễ dàng cập nhật (key: roomId, value: roomData)
+            let userCache = new Map(); // Cache tên user (key: customerId, value: fullName)
+            let userInfoCache = new Map(); // Cache thông tin đầy đủ user (key: customerId, value: fullUserInfo)
+            let roomSubscriptions = {}; // Lưu các subscription của phòng đang active
+            let messagePagination = new Map(); // Key: roomId, value: { oldestMessageId, isLoading, noMoreMessages }
+            let currentRoomOnlineStatus = []; // Lưu trạng thái online của phòng hiện tại
+            let extendOnlineInterval = null; // Interval ID để gửi extendOnline
+            let typingUsers = new Set(); // Set của customerId đang typing
+            let typingTimeout = null; // Timeout để gửi typing indicator
+            let lastTypingTime = 0; // Thời gian gửi typing indicator cuối
+            let selectedUsersForRoom = new Map(); // Map lưu user đã chọn để tạo phòng (key: customerId, value: userInfo)
+
+            // === 2. DOM ELEMENTS ===
+            const loginPage = document.getElementById('login-page');
+            const chatPage = document.getElementById('chat-page');
+            const loginForm = document.getElementById('login-form');
+            const loginError = document.getElementById('login-error');
+
+            const sidebar = document.getElementById('sidebar');
+            const roomList = document.getElementById('room-list');
+            const chatWindow = document.getElementById('chat-window');
+            const welcomeMessage = document.getElementById('welcome-message');
+            const activeChat = document.getElementById('active-chat');
+
+            const currentUserName = document.getElementById('current-user-name');
+            const currentUserId = document.getElementById('current-user-id');
+            const chatHeaderName = document.getElementById('chat-header-name');
+            const chatHeaderAvatar = document.getElementById('chat-header-avatar');
+            const chatHeaderStatus = document.getElementById('chat-header-status');
+
+            const messageList = document.getElementById('message-list');
+            const messageForm = document.getElementById('message-form');
+            const messageInput = document.getElementById('message-input');
+            const roomSearchInput = document.getElementById('room-search-input');
+            const typingIndicator = document.getElementById('typing-indicator');
+            const typingUsersText = document.getElementById('typing-users-text');
+
+            // Modal
+            const createRoomBtn = document.getElementById('create-room-btn');
+            const createRoomModal = document.getElementById('create-room-modal');
+            const createRoomForm = document.getElementById('create-room-form');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const cancelModalBtn = document.getElementById('cancel-modal-btn');
+            const createRoomError = document.getElementById('create-room-error');
+            const userSearchInput = document.getElementById('user-search-input');
+            const userSearchResults = document.getElementById('user-search-results');
+            const selectedUsersList = document.getElementById('selected-users-list');
+            const fetchUserBtn = document.getElementById('fetch-user-btn');
+            
+            // Edit Profile Modal
+            const userProfile = document.getElementById('user-profile');
+            const editProfileModal = document.getElementById('edit-profile-modal');
+            const editProfileForm = document.getElementById('edit-profile-form');
+            const closeEditProfileBtn = document.getElementById('close-edit-profile-btn');
+            const cancelEditProfileBtn = document.getElementById('cancel-edit-profile-btn');
+            const editProfileError = document.getElementById('edit-profile-error');
+            const currentUserAvatar = document.getElementById('current-user-avatar');
+            
+            // Room Info Modal
+            const chatInfoBtn = document.getElementById('chat-info-btn');
+            const roomInfoModal = document.getElementById('room-info-modal');
+            const closeRoomInfoBtn = document.getElementById('close-room-info-btn');
+            const roomMembersList = document.getElementById('room-members-list');
+            
+            // Logout
+            const logoutBtn = document.getElementById('logout-btn');
+
+            // === 3. HÀM TIỆN ÍCH ===
+
+            /**
+             * Hiển thị trang được chỉ định và ẩn các trang khác
+             * @param {string} pageId - 'login-page' hoặc 'chat-page'
+             */
+            function showPage(pageId) {
+                loginPage.classList.add('hidden');
+                chatPage.classList.add('hidden');
+                document.getElementById(pageId).classList.remove('hidden');
+            }
+
+            /**
+             * Lấy giá trị cookie bằng tên
+             */
+            function getCookie(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+            }
+
+            /**
+             * Định dạng thời gian (ISO string -> HH:mm)
+             */
+            function formatTime(isoString) {
+                if (!isoString) return '';
+                try {
+                    const date = new Date(isoString);
+                    // Kiểm tra nếu ngày là hôm nay
+                    const today = new Date();
+                    if (date.toDateString() === today.toDateString()) {
+                        return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                    }
+                    // Nếu là ngày khác, hiển thị ngày
+                    return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+                } catch (e) {
+                    console.error('Invalid date string:', isoString);
+                    return '';
+                }
+            }
+
+            /**
+             * Hàm fetch chung (sẽ tự động gửi cookie)
+             * @param {string} url - URL (không bao gồm API_URL)
+             * @param {object} options - Tùy chọn của Fetch API
+             */
+            async function apiFetch(url, options = {}) {
+                options.credentials = 'include'; // Quan trọng: Để gửi cookie
+                if (options.body && typeof options.body === 'object') {
+                    options.body = JSON.stringify(options.body);
+                    options.headers = {
+                        'Content-Type': 'application/json',
+                        ...options.headers,
+                    };
+                }
+                
+                try {
+                    const response = await fetch(`${API_URL}${url}`, options);
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        // Nếu là lỗi 401 (Unauthorized), có thể token hết hạn -> quay về login
+                        if (response.status === 401) {
+                            console.error('Unauthorized! Logging out.');
+                            stompClient?.disconnect();
+                            showPage('login-page');
+                            loginError.textContent = data.detail || 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
+                            loginError.classList.remove('hidden');
+                        }
+                        return Promise.reject(data);
+                    }
+                    return data;
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    return Promise.reject(error);
+                }
+            }
+
+            /**
+             * Lấy tên user (cache)
+             */
+            async function getCachedUserName(customerId) {
+                if (userCache.has(customerId)) {
+                    return userCache.get(customerId);
+                }
+                if (currentUser && currentUser.customerId == customerId) {
+                    userCache.set(customerId, currentUser.fullName);
+                    return currentUser.fullName;
+                }
+                
+                try {
+                    // API Gateway route: /customer/fullName/customerId/{customerId}
+                    const data = await apiFetch(`/customer/fullName/customerId/${customerId}`);
+                    if (data.success) {
+                        userCache.set(customerId, data.data);
+                        return data.data;
+                    }
+                } catch (e) {
+                    console.error(`Failed to fetch name for user ${customerId}`, e);
+                }
+                return `Người dùng ${customerId}`;
+            }
+
+            /**
+             * Lấy thông tin đầy đủ của user (cache)
+             */
+            async function getCachedUserInfo(customerId) {
+                if (userInfoCache.has(customerId)) {
+                    return userInfoCache.get(customerId);
+                }
+                
+                try {
+                    const data = await apiFetch(`/customer/info/customerId/${customerId}`);
+                    if (data.success) {
+                        userInfoCache.set(customerId, data.data);
+                        userCache.set(customerId, data.data.fullName);
+                        return data.data;
+                    }
+                } catch (e) {
+                    console.error(`Failed to fetch info for user ${customerId}`, e);
+                }
+                return null;
+            }
+
+            /**
+             * Lấy avatar color của user (từ cache hoặc default)
+             */
+            function getUserAvatarColor(customerId) {
+                const userInfo = userInfoCache.get(customerId);
+                return userInfo?.avatarColor || '#6366f1'; // Default indigo color
+            }
+
+            /**
+             * Load thông tin tất cả người trong phòng
+             */
+            async function loadRoomMembersInfo(roomId) {
+                const roomData = allRooms.get(parseInt(roomId));
+                if (!roomData || !roomData.participantIds) return;
+                
+                console.log('Loading info for participants:', roomData.participantIds);
+                const promises = roomData.participantIds.map(id => getCachedUserInfo(id));
+                await Promise.all(promises);
+                console.log('Loaded all participants info');
+            }
+
+            // === 4. LOGIC ĐĂNG NHẬP & ĐĂNG XUẤT ===
+
+            // Kiểm tra session khi load trang
+            async function checkSession() {
+                try {
+                    const data = await apiFetch('/customer/info');
+                    if (data.success) {
+                        currentUser = data.data;
+                        currentUserName.textContent = currentUser.fullName;
+                        currentUserId.textContent = `ID: ${currentUser.customerId}`;
+                        userCache.set(currentUser.customerId, currentUser.fullName);
+                        userInfoCache.set(currentUser.customerId, currentUser);
+                        
+                        // Cập nhật avatar
+                        updateCurrentUserAvatar();
+                        
+                        // Tải dữ liệu và chuyển đến trang chat
+                        await loadRooms();
+                        await connectWebSocket();
+                        showPage('chat-page');
+                        return true;
+                    }
+                } catch (error) {
+                    console.log('Chưa đăng nhập hoặc session hết hạn');
+                }
+                // Nếu không có session, hiển thị trang đăng nhập
+                showPage('login-page');
+                return false;
+            }
+
+            // Gọi checkSession khi trang load
+            checkSession();
+
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                loginError.classList.add('hidden');
+                const username = loginForm.username.value;
+                const password = loginForm.password.value;
+
+                try {
+                    const data = await apiFetch('/auth/login', {
+                        method: 'POST',
+                        body: { username, password }
+                    });
+
+                    if (data.message === "Login successful") {
+                        // 1. Lấy thông tin user hiện tại
+                        await fetchCurrentUser();
+                        // 2. Tải danh sách phòng
+                        await loadRooms();
+                        // 3. Kết nối WebSocket
+                        await connectWebSocket();
+                        // 4. Chuyển trang
+                        showPage('chat-page');
+                    } else {
+                        loginError.textContent = data.details || 'Đăng nhập thất bại.';
+                        loginError.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    loginError.textContent = error.details || error.message || 'Lỗi không xác định.';
+                    loginError.classList.remove('hidden');
+                }
+            });
+
+            async function fetchCurrentUser() {
+                try {
+                    const data = await apiFetch('/customer/info');
+                    if (data.success) {
+                        currentUser = data.data;
+                        currentUserName.textContent = currentUser.fullName;
+                        currentUserId.textContent = `ID: ${currentUser.customerId}`;
+                        // Cache tên của chính mình
+                        userCache.set(currentUser.customerId, currentUser.fullName);
+                        userInfoCache.set(currentUser.customerId, currentUser);
+                        // Cập nhật avatar
+                        updateCurrentUserAvatar();
+                    } else {
+                        throw new Error('Không thể lấy thông tin người dùng.');
+                    }
+                } catch (error) {
+                    console.error('Lỗi fetchCurrentUser:', error);
+                    // Quay về trang đăng nhập nếu không lấy được info
+                    showPage('login-page');
+                    loginError.textContent = 'Không thể xác thực người dùng. Vui lòng đăng nhập lại.';
+                    loginError.classList.remove('hidden');
+                }
+            }
+
+            function updateCurrentUserAvatar() {
+                if (!currentUser) return;
+                const avatarColor = currentUser.avatarColor || '#6366f1';
+                const initial = currentUser.fullName.charAt(0).toUpperCase();
+                currentUserAvatar.style.backgroundColor = avatarColor;
+                currentUserAvatar.textContent = initial;
+            }
+
+            // Xử lý logout
+            logoutBtn.addEventListener('click', async () => {
+                if (!confirm('Bạn có chắc muốn đăng xuất?')) return;
+                
+                try {
+                    // Ngắt kết nối WebSocket trước
+                    if (stompClient && stompClient.connected) {
+                        stompClient.disconnect();
+                    }
+                    
+                    // Ngắt interval extendOnline
+                    if (extendOnlineInterval) {
+                        clearInterval(extendOnlineInterval);
+                        extendOnlineInterval = null;
+                    }
+                    
+                    // Gọi API logout
+                    await apiFetch('/auth/logout', { method: 'POST' });
+                    
+                    // Reset trạng thái
+                    currentUser = null;
+                    currentRoomId = null;
+                    allRooms.clear();
+                    userCache.clear();
+                    roomSubscriptions = {};
+                    messagePagination.clear();
+                    currentRoomOnlineStatus = [];
+                    
+                    // Quay về trang đăng nhập
+                    showPage('login-page');
+                    loginForm.reset();
+                } catch (error) {
+                    console.error('Lỗi khi đăng xuất:', error);
+                    alert('Có lỗi xảy ra khi đăng xuất. Vui lòng thử lại.');
+                }
+            });
+
+            // === 5. LOGIC WEBSOCKET (STOMP) ===
+
+            async function connectWebSocket() {
+                // Lấy token từ cookie (do AuthController setHttpOnly(false))
+                const token = getCookie('jwt_token');
+                
+                if (!token) {
+                    console.error('Không tìm thấy jwt_token cookie. WebSocket không thể kết nối.');
+                    showPage('login-page');
+                    loginError.textContent = 'Lỗi xác thực (cookie). Vui lòng đăng nhập lại.';
+                    loginError.classList.remove('hidden');
+                    return;
+                }
+
+                // Dựa theo nginx.conf và WebSocketConfig.java
+                const socket = new SockJS(`${API_URL}/ws/chat`);
+                stompClient = Stomp.over(socket);
+
+                // Dựa theo AuthChannelInterceptor.java (bản active)
+                const connectHeaders = {
+                    'jwt_token': token
+                };
+
+                stompClient.connect(connectHeaders, onWsConnected, onWsError);
+            }
+
+            function onWsConnected() {
+                console.log('STOMP: Đã kết nối WebSocket!');
+                
+                // Đăng ký nhận cập nhật danh sách phòng
+                // Dựa theo KafkaConsumerService (websocket-service)
+                stompClient.subscribe(`/user/topic/rooms`, onRoomUpdate);
+                
+                // Đăng ký nhận cập nhật trạng thái đã đọc
+                stompClient.subscribe(`/user/topic/readStatus`, onReadStatusUpdate);
+                
+                // Thiết lập interval gửi extendOnline mỗi 1 phút
+                if (extendOnlineInterval) clearInterval(extendOnlineInterval);
+                extendOnlineInterval = setInterval(() => {
+                    if (stompClient && stompClient.connected) {
+                        console.log('Gửi extendOnline...');
+                        stompClient.send('/app/extendOnline', {}, '');
+                    }
+                }, 60000); // 60000ms = 1 phút
+            }
+
+            function onWsError(error) {
+                console.error('STOMP: Lỗi kết nối WebSocket', error);
+                // Có thể thêm logic tự động kết nối lại
+            }
+
+            /**
+             * Xử lý khi có cập nhật phòng (có phòng mới, hoặc tin nhắn mới trong phòng)
+             */
+            function onRoomUpdate(message) {
+                const roomData = JSON.parse(message.body);
+                console.log('STOMP: Nhận cập nhật phòng:', roomData);
+                
+                // Cập nhật hoặc thêm mới vào Map
+                allRooms.set(roomData.roomId, roomData);
+                
+                // Render lại danh sách
+                renderRoomList();
+            }
+
+            /**
+             * Xử lý khi nhận cập nhật trạng thái đã đọc
+             */
+            function onReadStatusUpdate(message) {
+                const statusData = JSON.parse(message.body); // { roomId, customerId, isUnread }
+                console.log('STOMP: Nhận cập nhật read status:', statusData);
+                
+                // Cập nhật unreadStatus cho phòng tương ứng
+                const room = allRooms.get(statusData.roomId);
+                if (room) {
+                    if (!room.unreadStatus) {
+                        room.unreadStatus = {};
+                    }
+                    room.unreadStatus[statusData.customerId] = statusData.isUnread;
+                    
+                    // Render lại danh sách để cập nhật UI
+                    renderRoomList();
+                }
+            }
+
+
+            // === 6. LOGIC DANH SÁCH PHÒNG CHAT (CỘT TRÁI) ===
+
+            async function loadRooms() {
+                try {
+                    const data = await apiFetch('/query/rooms');
+                    if (data.success) {
+                        // Sắp xếp theo updatedAt giảm dần (mới nhất lên đầu)
+                        const sortedRooms = data.data.sort((a, b) => 
+                            new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)
+                        );
+                        allRooms.clear();
+                        sortedRooms.forEach(room => allRooms.set(room.roomId, room));
+                        renderRoomList();
+                    }
+                } catch (error) {
+                    console.error('Lỗi tải danh sách phòng:', error);
+                }
+            }
+            
+            function renderRoomList() {
+                const fragment = document.createDocumentFragment();
+                
+                // Sắp xếp lại Map theo updatedAt
+                const sortedRooms = Array.from(allRooms.values()).sort((a, b) => 
+                    new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)
+                );
+                
+                // Lọc theo thanh tìm kiếm
+                const searchTerm = roomSearchInput.value.toLowerCase();
+                
+                sortedRooms
+                    .filter(room => room.roomName.toLowerCase().includes(searchTerm))
+                    .forEach(room => {
+                        const roomDiv = document.createElement('div');
+                        roomDiv.className = `room-item flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-200 border-b border-gray-100 transition-colors ${room.roomId == currentRoomId ? 'selected' : ''}`;
+                        roomDiv.dataset.roomId = room.roomId;
+                        
+                        // Lấy 2 chữ cái đầu của tên phòng
+                        const avatarText = room.roomName.substring(0, 2).toUpperCase();
+                        const lastMsg = room.lastMessage;
+                        
+                        // Kiểm tra trạng thái unread của user hiện tại
+                        const isUnread = room.unreadStatus && room.unreadStatus[currentUser.customerId];
+                        const fontWeightClass = isUnread ? 'font-bold' : 'font-semibold';
+                        const textColorClass = isUnread ? 'text-gray-900' : 'text-gray-800';
+                        const messageWeightClass = isUnread ? 'font-semibold' : 'font-normal';
+                        const messageColorClass = isUnread ? 'text-gray-800' : 'text-gray-600';
+
+                        roomDiv.innerHTML = `
+                            <div class="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold flex-shrink-0">
+                                ${avatarText}
+                            </div>
+                            <div class="flex-1 overflow-hidden">
+                                <div class="flex justify-between items-baseline">
+                                    <h3 class="room-name ${fontWeightClass} ${textColorClass} truncate">${room.roomName}</h3>
+                                    <span class="room-timestamp text-xs text-gray-500 ml-2 flex-shrink-0">${formatTime(room.updatedAt)}</span>
+                                </div>
+                                <p class="last-message text-sm ${messageWeightClass} ${messageColorClass} truncate">
+                                    ${lastMsg ? (lastMsg.senderId == currentUser.customerId ? 'Bạn: ' : '') + lastMsg.content : 'Chưa có tin nhắn'}
+                                </p>
+                            </div>
+                        `;
+                        
+                        // Thêm indicator chưa đọc (dot)
+                        if (isUnread) {
+                            const unreadDot = document.createElement('div');
+                            unreadDot.className = 'w-3 h-3 bg-indigo-600 rounded-full flex-shrink-0';
+                            unreadDot.title = 'Có tin nhắn chưa đọc';
+                            roomDiv.appendChild(unreadDot);
+                        }
+                        fragment.appendChild(roomDiv);
+                    });
+                
+                roomList.innerHTML = ''; // Xóa list cũ
+                roomList.appendChild(fragment); // Thêm list mới
+            }
+
+            // Lọc danh sách phòng khi gõ tìm kiếm
+            roomSearchInput.addEventListener('input', renderRoomList);
+
+            // Xử lý click vào một phòng
+            roomList.addEventListener('click', (e) => {
+                const roomItem = e.target.closest('.room-item');
+                if (roomItem) {
+                    const newRoomId = roomItem.dataset.roomId;
+                    if (newRoomId !== currentRoomId) {
+                        selectRoom(newRoomId);
+                    }
+                }
+            });
+
+            // === 7. LOGIC MODAL TẠO PHÒNG ===
+            createRoomBtn.addEventListener('click', () => {
+                createRoomModal.classList.remove('hidden');
+                createRoomForm.reset();
+                createRoomError.classList.add('hidden');
+                selectedUsersForRoom.clear();
+                renderSelectedUsers();
+                userSearchResults.classList.add('hidden');
+            });
+
+            function closeModal() {
+                createRoomModal.classList.add('hidden');
+                selectedUsersForRoom.clear();
+            }
+            closeModalBtn.addEventListener('click', closeModal);
+            cancelModalBtn.addEventListener('click', closeModal);
+            createRoomModal.addEventListener('click', closeModal); // Đóng khi click ra ngoài
+
+            // Tìm kiếm user theo số điện thoại - CHỈ KHI BẤM NÚT
+            fetchUserBtn.addEventListener('click', async () => {
+                const phoneNumber = userSearchInput.value.trim();
+                
+                if (phoneNumber.length < 3) {
+                    userSearchResults.innerHTML = '<p class="p-3 text-sm text-gray-500">Vui lòng nhập ít nhất 3 số</p>';
+                    userSearchResults.classList.remove('hidden');
+                    return;
+                }
+                
+                try {
+                    const data = await apiFetch(`/customer/info/phoneNumber/${phoneNumber}`);
+                    if (data.success && data.data.length > 0) {
+                        renderSearchResults(data.data);
+                    } else {
+                        userSearchResults.innerHTML = '<p class="p-3 text-sm text-gray-500">Không tìm thấy người dùng</p>';
+                        userSearchResults.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error('Lỗi tìm kiếm user:', error);
+                    userSearchResults.innerHTML = '<p class="p-3 text-sm text-red-500">Đã xảy ra lỗi</p>';
+                    userSearchResults.classList.remove('hidden');
+                }
+            });
+            
+            // Cho phép enter để tìm kiếm
+            userSearchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    fetchUserBtn.click();
+                }
+            });
+
+            // Render kết quả tìm kiếm
+            function renderSearchResults(users) {
+                userSearchResults.innerHTML = '';
+                users.forEach(user => {
+                    // Bỏ qua nếu đã chọn hoặc là chính mình
+                    if (selectedUsersForRoom.has(user.customerId) || user.customerId === currentUser.customerId) {
+                        return;
+                    }
+                    
+                    const avatarColor = user.avatarColor || '#6366f1';
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'flex items-center gap-3 p-3 hover:bg-gray-100 cursor-pointer';
+                    resultItem.innerHTML = `
+                        <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold" style="background-color: ${avatarColor}">
+                            ${user.fullName.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-800">${user.fullName}</p>
+                            <p class="text-xs text-gray-500">${user.phoneNumber}</p>
+                        </div>
+                    `;
+                    
+                    resultItem.addEventListener('click', () => {
+                        selectedUsersForRoom.set(user.customerId, user);
+                        userInfoCache.set(user.customerId, user); // Cache luôn
+                        userCache.set(user.customerId, user.fullName);
+                        renderSelectedUsers();
+                        userSearchInput.value = '';
+                        userSearchResults.classList.add('hidden');
+                    });
+                    
+                    userSearchResults.appendChild(resultItem);
+                });
+                userSearchResults.classList.remove('hidden');
+            }
+
+            // Render danh sách user đã chọn
+            function renderSelectedUsers() {
+                selectedUsersList.innerHTML = '';
+                if (selectedUsersForRoom.size === 0) {
+                    selectedUsersList.innerHTML = '<p class="text-sm text-gray-500 italic">Chưa có thành viên nào được chọn</p>';
+                    return;
+                }
+                
+                selectedUsersForRoom.forEach((user, customerId) => {
+                    const avatarColor = user.avatarColor || '#6366f1';
+                    const userItem = document.createElement('div');
+                    userItem.className = 'flex items-center gap-3 p-2 bg-gray-50 rounded-lg';
+                    userItem.innerHTML = `
+                        <div class="w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-sm" style="background-color: ${avatarColor}">
+                            ${user.fullName.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-gray-800">${user.fullName}</p>
+                            <p class="text-xs text-gray-500">${user.phoneNumber}</p>
+                        </div>
+                        <button type="button" class="p-1 text-red-500 hover:bg-red-100 rounded" data-user-id="${customerId}">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    `;
+                    
+                    // Xóa user khỏi danh sách
+                    userItem.querySelector('button').addEventListener('click', () => {
+                        selectedUsersForRoom.delete(customerId);
+                        renderSelectedUsers();
+                    });
+                    
+                    selectedUsersList.appendChild(userItem);
+                });
+                
+                lucide.createIcons(); // Refresh icons
+            }
+
+            // === LOGIC MODAL EDIT PROFILE ===
+            userProfile.addEventListener('click', () => {
+                if (!currentUser) return;
+                
+                // Điền thông tin hiện tại
+                document.getElementById('edit-fullname').value = currentUser.fullName;
+                document.getElementById('edit-email').value = currentUser.email || '';
+                document.getElementById('edit-phone').value = currentUser.phoneNumber || '';
+                document.getElementById('edit-avatar-color').value = currentUser.avatarColor || '#6366f1';
+                
+                editProfileError.classList.add('hidden');
+                editProfileModal.classList.remove('hidden');
+                lucide.createIcons();
+            });
+            
+            function closeEditProfileModal() {
+                editProfileModal.classList.add('hidden');
+            }
+            
+            closeEditProfileBtn.addEventListener('click', closeEditProfileModal);
+            cancelEditProfileBtn.addEventListener('click', closeEditProfileModal);
+            editProfileModal.addEventListener('click', closeEditProfileModal);
+            
+            editProfileForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                editProfileError.classList.add('hidden');
+                
+                const fullName = document.getElementById('edit-fullname').value.trim();
+                const email = document.getElementById('edit-email').value.trim();
+                const phoneNumber = document.getElementById('edit-phone').value.trim();
+                const avatarColor = document.getElementById('edit-avatar-color').value;
+                
+                try {
+                    const data = await apiFetch('/customer/info', {
+                        method: 'POST',
+                        body: { fullName, email, phoneNumber, avatarColor }
+                    });
+                    
+                    if (data.success) {
+                        // Cập nhật currentUser
+                        currentUser.fullName = fullName;
+                        currentUser.email = email;
+                        currentUser.phoneNumber = phoneNumber;
+                        currentUser.avatarColor = avatarColor;
+                        
+                        // Cập nhật cache
+                        userCache.set(currentUser.customerId, fullName);
+                        userInfoCache.set(currentUser.customerId, currentUser);
+                        
+                        // Cập nhật UI
+                        currentUserName.textContent = fullName;
+                        updateCurrentUserAvatar();
+                        
+                        closeEditProfileModal();
+                        alert('Cập nhật thông tin thành công!');
+                    } else {
+                        throw new Error(data.message || 'Cập nhật thất bại');
+                    }
+                } catch (error) {
+                    console.error('Lỗi cập nhật thông tin:', error);
+                    editProfileError.textContent = error.message || 'Đã xảy ra lỗi.';
+                    editProfileError.classList.remove('hidden');
+                }
+            });
+
+            createRoomForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                createRoomError.classList.add('hidden');
+                
+                const roomName = document.getElementById('room-name-input').value;
+                
+                if (selectedUsersForRoom.size === 0) {
+                    createRoomError.textContent = 'Vui lòng chọn ít nhất một thành viên.';
+                    createRoomError.classList.remove('hidden');
+                    return;
+                }
+
+                try {
+                    const targetCustomerIds = Array.from(selectedUsersForRoom.keys());
+                    const data = await apiFetch('/command/room', {
+                        method: 'POST',
+                        body: { roomName, targetCustomerIds }
+                    });
+                    
+                    if (data.success) {
+                        console.log('Tạo phòng thành công, ID:', data.data);
+                        closeModal();
+                        // Không cần làm gì thêm, STOMP subscription /user/topic/rooms sẽ tự động cập nhật UI
+                    } else {
+                        throw new Error(data.message || 'Tạo phòng thất bại');
+                    }
+                } catch (error) {
+                    createRoomError.textContent = error.message || 'Đã xảy ra lỗi.';
+                    createRoomError.classList.remove('hidden');
+                }
+            });
+
+
+            // === 8. LOGIC KHUNG CHAT (CỘT PHẢI) ===
+
+            /**
+             * Hàm chính xử lý khi chọn một phòng
+             */
+            async function selectRoom(roomId) {
+                // Hủy đăng ký các topic của phòng cũ (nếu có)
+                if (currentRoomId && roomSubscriptions[currentRoomId]) {
+                    roomSubscriptions[currentRoomId].messageSub.unsubscribe();
+                    roomSubscriptions[currentRoomId].statusSub.unsubscribe();
+                    roomSubscriptions[currentRoomId].readSub.unsubscribe();
+                    delete roomSubscriptions[currentRoomId];
+                }
+
+                // Cập nhật UI
+                if (currentRoomId) {
+                    document.querySelector(`.room-item[data-room-id="${currentRoomId}"]`)?.classList.remove('selected');
+                }
+                document.querySelector(`.room-item[data-room-id="${roomId}"]`)?.classList.add('selected');
+
+                currentRoomId = roomId;
+                const roomData = allRooms.get(parseInt(roomId));
+
+                if (!roomData) {
+                    console.error(`Không tìm thấy dữ liệu cho phòng ${roomId}`);
+                    return;
+                }
+
+                // Hiển thị khung chat, ẩn welcome
+                welcomeMessage.classList.add('hidden');
+                activeChat.classList.remove('hidden');
+
+                // Cập nhật header
+                chatHeaderName.textContent = roomData.roomName;
+                const avatarText = roomData.roomName.substring(0, 2).toUpperCase();
+                chatHeaderAvatar.src = `https://placehold.co/40x40/10b981/white?text=${avatarText}`;
+                chatHeaderStatus.textContent = 'Đang tải trạng thái...'; // Sẽ được cập nhật
+                
+                // Reset tin nhắn
+                messageList.innerHTML = '';
+                messagePagination.set(roomId, { oldestMessageId: null, isLoading: false, noMoreMessages: false });
+                
+                // Reset typing indicator
+                typingUsers.clear();
+                updateTypingIndicator();
+                
+                // Đăng ký các topic cho phòng mới
+                roomSubscriptions[roomId] = {
+                    messageSub: stompClient.subscribe(`/topic/message/roomId/${roomId}`, onNewMessage),
+                    statusSub: stompClient.subscribe(`/topic/onlineStatus/roomId/${roomId}`, onOnlineStatus),
+                    readSub: stompClient.subscribe(`/topic/readMarkers/roomId/${roomId}`, onReadMarkerUpdate),
+                    typingSub: stompClient.subscribe(`/topic/typing/roomId/${roomId}`, onTypingUpdate)
+                };
+                
+                // Tải thông tin tất cả thành viên trong phòng
+                await loadRoomMembersInfo(roomId);
+                
+                // Tải dữ liệu ban đầu
+                await loadOnlineStatus(roomId);
+                const newestMessageId = await loadMessages(roomId); // Tải 20 tin nhắn đầu tiên
+                
+                // Load read markers SAU KHI tin nhắn đã được tải
+                await loadReadMarkers(roomId);
+
+                // Scroll xuống cuối để thấy tin nhắn mới nhất VÀ read markers bên dưới
+                // Scroll thêm một chút so với chiều cao để thấy được markers
+                setTimeout(() => {
+                    messageList.scrollTop = messageList.scrollHeight;
+                }, 100);
+
+                // Cập nhật trạng thái "đã đọc" khi vào phòng
+                if (newestMessageId) {
+                    await updateMyReadMarker(roomId, newestMessageId);
+                }
+            }
+
+            /**
+             * Tải tin nhắn (có phân trang)
+             */
+            async function loadMessages(roomId, indexMessageId = null) {
+                const pageState = messagePagination.get(roomId);
+                if (pageState.isLoading || (indexMessageId && pageState.noMoreMessages)) return null;
+
+                pageState.isLoading = true;
+                
+                let url = `/query/message/roomId/${roomId}`; // SỬA: Thêm tiền tố /query/
+                if (indexMessageId) {
+                    url += `/index/${indexMessageId}`;
+                }
+
+                try {
+                    const data = await apiFetch(url);
+                    if (data.success && data.data.length > 0) {
+                        const messages = data.data; // API trả về 20 tin mới nhất -> cũ nhất
+                        
+                        if (indexMessageId) {
+                            // Đang load tin cũ hơn (phân trang): sắp xếp từ mới -> cũ, prepend
+                            messages.sort((a, b) => b.messageId - a.messageId);
+                            messages.forEach(msg => prependMessage(msg));
+                        } else {
+                            // Load lần đầu: sắp xếp từ cũ -> mới, append
+                            messages.sort((a, b) => a.messageId - b.messageId);
+                            messages.forEach(msg => appendMessage(msg));
+                        }
+
+                        // Lưu ID của tin nhắn CŨ NHẤT để phân trang
+                        const oldestMsg = messages.reduce((min, msg) => msg.messageId < min.messageId ? msg : min);
+                        pageState.oldestMessageId = oldestMsg.messageId; 
+                        
+                        // Trả về ID tin nhắn MỚI NHẤT (để cập nhật read marker)
+                        if (!indexMessageId) {
+                            const newestMsg = messages.reduce((max, msg) => msg.messageId > max.messageId ? msg : max);
+                            return newestMsg.messageId;
+                        }
+                        return null;
+                        
+                    } else {
+                        pageState.noMoreMessages = true;
+                        if (!indexMessageId) return null; // Không có tin nhắn nào trong phòng
+                    }
+                } catch (error) {
+                    console.error('Lỗi tải tin nhắn:', error);
+                } finally {
+                    pageState.isLoading = false;
+                }
+                return null;
+            }
+
+            // Xử lý cuộn lên để tải tin cũ
+            messageList.addEventListener('scroll', () => {
+                // Khi cuộn lên đỉnh (scrollTop gần 0)
+                if (messageList.scrollTop <= 10) {
+                    const pageState = messagePagination.get(currentRoomId);
+                    if (pageState && !pageState.isLoading && !pageState.noMoreMessages && pageState.oldestMessageId) {
+                        console.log('Đang tải tin nhắn cũ hơn...', pageState.oldestMessageId);
+                        loadMessages(currentRoomId, pageState.oldestMessageId);
+                    }
+                }
+            });
+
+            /**
+             * Chèn tin nhắn cũ (vào đầu list - tức là lên trên cùng màn hình)
+             */
+            function prependMessage(msg) {
+                const isMine = msg.senderId == currentUser.customerId;
+                const messageHtml = createMessageHTML(msg, isMine);
+                messageList.insertAdjacentHTML('afterbegin', messageHtml); // Thay đổi từ 'beforeend' thành 'afterbegin'
+            }
+
+            /**
+             * Chèn tin nhắn mới (vào cuối list - tức là xuống dưới cùng màn hình)
+             */
+            function appendMessage(msg) {
+                const isMine = msg.senderId == currentUser.customerId;
+                const messageHtml = createMessageHTML(msg, isMine);
+                messageList.insertAdjacentHTML('beforeend', messageHtml); // Thêm vào cuối
+                
+                // Tự động cuộn xuống cuối khi có tin nhắn mới
+                messageList.scrollTop = messageList.scrollHeight;
+            }
+
+            /**
+             * Tạo HTML cho một tin nhắn
+             */
+            function createMessageHTML(msg, isMine) {
+                const senderName = isMine ? 'Bạn' : (msg.senderFullName || `Người dùng ${msg.senderId}`);
+                const time = formatTime(msg.sentAt);
+                
+                if (isMine) {
+                    return `
+                        <div class="message-item flex justify-end" data-message-id="${msg.messageId}">
+                            <div class="message-bubble-mine max-w-xs lg:max-w-xl p-3 rounded-t-2xl rounded-l-2xl bg-indigo-600 text-white shadow">
+                                <p class="text-sm">${msg.content}</p>
+                                <span class="block text-xs text-indigo-200 text-right mt-1">${time}</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    const avatarColor = getUserAvatarColor(msg.senderId);
+                    return `
+                        <div class="message-item flex justify-start" data-message-id="${msg.messageId}">
+                            <div class="w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-sm self-end mr-2" style="background-color: ${avatarColor}" title="${senderName}">
+                                ${senderName.charAt(0).toUpperCase()}
+                            </div>
+                            <div class="message-bubble-theirs max-w-xs lg:max-w-xl p-3 rounded-t-2xl rounded-r-2xl bg-white text-gray-800 shadow">
+                                <p class="text-sm font-semibold mb-1" style="color: ${avatarColor}">${senderName}</p>
+                                <p class="text-sm">${msg.content}</p>
+                                <span class="block text-xs text-gray-500 text-right mt-1">${time}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            // Gửi tin nhắn
+            messageForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const content = messageInput.value.trim();
+                if (!content || !currentRoomId) return;
+
+                try {
+                    // Gửi stop typing trước khi gửi tin nhắn
+                    sendTypingIndicator(false);
+                    
+                    // Gọi API command để gửi tin
+                    await apiFetch('/command/message', {
+                        method: 'POST',
+                        body: { 
+                            roomId: parseInt(currentRoomId), 
+                            content: content 
+                        }
+                    });
+                    // Gửi thành công, xóa input
+                    messageInput.value = '';
+                    // Không cần appendMessage ở đây, vì STOMP /topic/message/roomId/...
+                    // sẽ gửi tin nhắn (bao gồm cả của mình) về cho mọi người.
+                } catch (error) {
+                    console.error('Lỗi gửi tin nhắn:', error);
+                    // Có thể hiển thị lỗi tạm thời
+                }
+            });
+
+            // Xử lý typing indicator khi người dùng gõ phím
+            messageInput.addEventListener('input', () => {
+                if (!currentRoomId) return;
+                
+                const hasContent = messageInput.value.trim().length > 0;
+                
+                if (!hasContent) {
+                    // Nếu input rỗng, chỉ clear timeout, không gửi gì
+                    if (typingTimeout) {
+                        clearTimeout(typingTimeout);
+                        typingTimeout = null;
+                    }
+                    return;
+                }
+                
+                const now = Date.now();
+                // Gửi typing indicator nếu đã qua 3 giây kể từ lần gửi cuối (hoặc lần đầu)
+                if (now - lastTypingTime >= 3000) {
+                    sendTypingIndicator(true);
+                    lastTypingTime = now;
+                }
+                
+                // Clear timeout cũ và tạo mới để reset bộ đếm 3 giây
+                if (typingTimeout) clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(() => {
+                    // Sau 3 giây không gõ, chỉ reset thời gian, không gửi false
+                    lastTypingTime = 0;
+                }, 3000);
+            });
+
+            /**
+             * Gửi typing indicator qua STOMP
+             */
+            function sendTypingIndicator(isTyping) {
+                if (!stompClient || !stompClient.connected || !currentRoomId) return;
+
+                const isTypingNum = isTyping ? 1 : 0;
+                
+                const message = {
+                    roomId: parseInt(currentRoomId),
+                    isTyping: isTypingNum
+                };
+                
+                console.log('Sending typing indicator - isTyping value:', isTyping, 'type:', typeof isTyping);
+                console.log('Message object:', message);
+                stompClient.send('/app/typing', {}, JSON.stringify(message));
+                console.log('Sent typing indicator - JSON:', JSON.stringify(message));
+            }
+
+            /**
+             * Xử lý khi có tin nhắn STOMP mới
+             */
+            function onNewMessage(message) {
+                const msgData = JSON.parse(message.body);
+                console.log('STOMP: Nhận tin nhắn mới:', msgData);
+                
+                // Chỉ thêm nếu đang ở đúng phòng
+                if (msgData.roomId == currentRoomId) {
+                    appendMessage(msgData);
+                    
+                    // Tự động cập nhật "đã đọc" khi đang trong phòng
+                    updateMyReadMarker(currentRoomId, msgData.messageId);
+                }
+            }
+
+            // === 9. LOGIC TRẠNG THÁI ONLINE ===
+
+            async function loadOnlineStatus(roomId) {
+                try {
+                    const data = await apiFetch(`/query/onlineStatus/roomId/${roomId}`);
+                    if (data.success) {
+                        updateOnlineStatusUI(data.data);
+                    }
+                } catch (error) {
+                    console.error('Lỗi tải trạng thái online:', error);
+                    chatHeaderStatus.textContent = 'Không thể tải trạng thái';
+                }
+            }
+            
+            function onOnlineStatus(message) {
+                const statusData = JSON.parse(message.body); // { customerId, online }
+                console.log('STOMP: Nhận cập nhật online:', statusData);
+                // Cần tải lại toàn bộ list để cập nhật
+                loadOnlineStatus(currentRoomId);
+            }
+
+            function updateOnlineStatusUI(statuses) {
+                currentRoomOnlineStatus = statuses; // Lưu trạng thái
+                const onlineCount = statuses.filter(s => s.online).length;
+                const totalCount = statuses.length;
+                chatHeaderStatus.textContent = `${onlineCount}/${totalCount} người đang hoạt động`;
+            }
+            
+            // Xử lý nút info - hiển thị modal thành viên
+            chatInfoBtn.addEventListener('click', async () => {
+                if (!currentRoomId || currentRoomOnlineStatus.length === 0) return;
+                
+                // Tải lại trạng thái mới nhất
+                await loadOnlineStatus(currentRoomId);
+                
+                // Render danh sách thành viên
+                roomMembersList.innerHTML = '';
+                for (const status of currentRoomOnlineStatus) {
+                    const userName = await getCachedUserName(status.customerId);
+                    const avatarColor = getUserAvatarColor(status.customerId);
+                    const isOnline = status.online;
+                    const statusColor = isOnline ? 'bg-green-500' : 'bg-gray-400';
+                    const statusText = isOnline ? 'Online' : 'Offline';
+                    
+                    const memberHtml = `
+                        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                            <div class="relative">
+                                <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold" style="background-color: ${avatarColor}">
+                                    ${userName.charAt(0).toUpperCase()}
+                                </div>
+                                <span class="absolute bottom-0 right-0 w-3 h-3 ${statusColor} border-2 border-white rounded-full"></span>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-gray-800">${userName}</p>
+                                <p class="text-xs text-gray-500">ID: ${status.customerId}</p>
+                            </div>
+                            <span class="text-xs font-medium ${isOnline ? 'text-green-600' : 'text-gray-500'}">${statusText}</span>
+                        </div>
+                    `;
+                    roomMembersList.insertAdjacentHTML('beforeend', memberHtml);
+                }
+                
+                // Hiển thị modal
+                roomInfoModal.classList.remove('hidden');
+                lucide.createIcons(); // Refresh icons
+            });
+            
+            // Đóng modal thông tin phòng
+            closeRoomInfoBtn.addEventListener('click', () => {
+                roomInfoModal.classList.add('hidden');
+            });
+            roomInfoModal.addEventListener('click', () => {
+                roomInfoModal.classList.add('hidden');
+            });
+
+
+            // === 10. LOGIC ĐÁNH DẤU ĐÃ ĐỌC (READ MARKERS) ===
+
+            /**
+             * Gửi lệnh cập nhật "đã đọc" của TÔI lên server
+             */
+            async function updateMyReadMarker(roomId, messageId) {
+                if (!roomId || !messageId) return;
+                try {
+                    await apiFetch('/command/read', {
+                        method: 'POST',
+                        body: {
+                            roomId: parseInt(roomId),
+                            messageId: parseInt(messageId)
+                        }
+                    });
+                } catch (error) {
+                    console.error('Lỗi cập nhật read marker:', error);
+                }
+            }
+
+            /**
+             * Tải tất cả read marker của người khác khi vào phòng
+             */
+            async function loadReadMarkers(roomId) {
+                console.log('=== loadReadMarkers được gọi cho phòng:', roomId);
+                // Xóa các marker cũ
+                document.querySelectorAll('.read-marker').forEach(el => el.remove());
+                try {
+                    const data = await apiFetch(`/query/readMarkers/roomId/${roomId}`);
+                    console.log('Read markers API response:', data);
+                    if (data.success) {
+                        console.log(`Có ${data.data.length} read markers`);
+                        // Cập nhật UI cho từng marker
+                        for (const marker of data.data) {
+                            console.log('Đang xử lý marker:', marker);
+                            await updateReadMarkerUI(marker);
+                        }
+                    } else {
+                        console.warn('API trả về success=false:', data);
+                    }
+                } catch (error) {
+                    console.error('Lỗi tải read markers:', error);
+                }
+            }
+            
+            /**
+             * Xử lý khi STOMP báo có ai đó vừa đọc tin nhắn
+             */
+            function onReadMarkerUpdate(message) {
+                const markerData = JSON.parse(message.body); // { roomId, customerId, lastReadMessageId }
+                console.log('STOMP: Nhận cập nhật read marker:', markerData);
+                if (markerData.roomId == currentRoomId) {
+                    updateReadMarkerUI(markerData);
+                }
+            }
+
+            /**
+             * Cập nhật UI hiển thị "Đã xem bởi..."
+             * Hiển thị marker dưới tin nhắn cuối cùng mà người dùng đã đọc đến
+             */
+            async function updateReadMarkerUI(marker) {
+                console.log('updateReadMarkerUI called:', marker);
+                
+                // Không hiển thị marker của chính mình
+                if (marker.customerId == currentUser.customerId) {
+                    console.log('Bỏ qua marker của chính mình');
+                    return;
+                }
+                
+                // Xóa marker "đã xem" cũ của user này (nếu có)
+                const oldMarkers = document.querySelectorAll(`.read-marker[data-user-id="${marker.customerId}"]`);
+                console.log(`Xóa ${oldMarkers.length} marker cũ của user ${marker.customerId}`);
+                oldMarkers.forEach(m => m.remove());
+
+                // Tìm tin nhắn cuối cùng đã đọc
+                const messageElement = document.querySelector(`.message-item[data-message-id="${marker.lastReadMessageId}"]`);
+                if (!messageElement) {
+                    console.log(`Không tìm thấy tin nhắn ${marker.lastReadMessageId} trong DOM`);
+                    return;
+                }
+                
+                console.log(`Tìm thấy tin nhắn ${marker.lastReadMessageId}, thêm marker`);
+                
+                // Lấy tên user và màu avatar
+                const userName = await getCachedUserName(marker.customerId);
+                const avatarColor = getUserAvatarColor(marker.customerId);
+                const initial = userName.charAt(0).toUpperCase();
+                
+                // Tạo HTML marker
+                const markerHtml = `
+                    <div class="read-marker flex justify-end items-center gap-1 w-full pr-2" data-user-id="${marker.customerId}">
+                        <p class="text-xs text-gray-500 italic">Đã xem bởi ${userName}</p>
+                        <div class="w-4 h-4 rounded-full text-white flex items-center justify-center text-xs font-bold" style="background-color: ${avatarColor}" title="${userName}">
+                            ${initial}
+                        </div>
+                    </div>
+                `;
+                
+                // Chèn marker ngay sau tin nhắn
+                messageElement.insertAdjacentHTML('afterend', markerHtml);
+                console.log(`Đã thêm marker cho user ${userName}`);
+            }
+
+            // === 11. LOGIC TYPING INDICATOR ===
+
+            /**
+             * Xử lý khi nhận typing update từ STOMP
+             */
+            function onTypingUpdate(message) {
+                const typingData = JSON.parse(message.body); // { roomId, typing, customerId }
+                console.log('STOMP: Nhận typing update:', typingData);
+                
+                if (typingData.roomId != currentRoomId) return;
+                if (typingData.customerId == currentUser.customerId) return; // Bỏ qua chính mình
+                
+                if (typingData.typing) {
+                    typingUsers.add(typingData.customerId);
+                } else {
+                    typingUsers.delete(typingData.customerId);
+                }
+                
+                updateTypingIndicator();
+            }
+
+            /**
+             * Cập nhật UI hiển thị typing indicator
+             */
+            async function updateTypingIndicator() {
+                if (typingUsers.size === 0) {
+                    typingIndicator.classList.add('hidden');
+                    return;
+                }
+                
+                // Lấy tên các người đang typing
+                const names = [];
+                for (const userId of typingUsers) {
+                    const name = await getCachedUserName(userId);
+                    names.push(name);
+                }
+                
+                // Hiển thị
+                if (names.length === 1) {
+                    typingUsersText.textContent = names[0];
+                } else if (names.length === 2) {
+                    typingUsersText.textContent = names.join(' và ');
+                } else {
+                    typingUsersText.textContent = `${names.slice(0, 2).join(', ')} và ${names.length - 2} người khác`;
+                }
+                
+                typingIndicator.classList.remove('hidden');
+            }
+
+        }); // Hết DOMContentLoaded
+    </script>
+
+</body>
+</html>

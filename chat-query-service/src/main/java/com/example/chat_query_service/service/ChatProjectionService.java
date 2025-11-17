@@ -2,6 +2,7 @@ package com.example.chat_query_service.service;
 
 import com.example.chat_query_service.document.ChatRoomView;
 import com.example.chat_query_service.document.ChatRoomView.LastMessageInfo;
+import com.example.chat_query_service.kafka.KafkaProducerService;
 import com.example.chat_query_service.document.MessageDocument;
 import com.example.chat_query_service.document.ReadMarker;
 import com.example.chat_query_service.kafka.dto.MessageSentEvent;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -24,11 +26,13 @@ public class ChatProjectionService {
     private final MessageDocumentRepository messageRepository;
     private final ChatRoomViewRepository chatRoomViewRepository;
     private final ReadMarkerRepository readMarkerRepository;
+    private final KafkaProducerService kafkaProducerService;
 
-    public ChatProjectionService(MessageDocumentRepository messageRepository, ChatRoomViewRepository chatRoomViewRepository, ReadMarkerRepository readMarkerRepository) {
+    public ChatProjectionService(MessageDocumentRepository messageRepository, ChatRoomViewRepository chatRoomViewRepository, ReadMarkerRepository readMarkerRepository, KafkaProducerService kafkaProducerService) {
         this.messageRepository = messageRepository;
         this.chatRoomViewRepository = chatRoomViewRepository;
         this.readMarkerRepository = readMarkerRepository;
+        this.kafkaProducerService = kafkaProducerService;
     }
 
     public void handleRoomCreatedEvent(RoomCreatedEvent event) {
@@ -38,16 +42,25 @@ public class ChatProjectionService {
                 .map(dto -> dto.getId())
                 .collect(Collectors.toList());
 
+        Map<Long, Boolean> unreadStatus = participantIds.stream()
+                .collect(Collectors.toMap(
+                    id -> id, 
+                    id -> true 
+                ));
+
         ChatRoomView roomView = new ChatRoomView();
         roomView.setRoomId(event.getRoomId());
         roomView.setRoomName(event.getRoomName());
         roomView.setParticipantIds(participantIds);
+        roomView.setUnreadStatus(unreadStatus);
         roomView.setCreatedAt(event.getCreatedAt()); 
         roomView.setUpdatedAt(event.getCreatedAt());
         roomView.setLastMessage(null); 
         
-        chatRoomViewRepository.save(roomView);
+        ChatRoomView savedRoomView = chatRoomViewRepository.save(roomView);
         System.out.println("--- Projected Room (ID: " + event.getRoomId() + ") to MongoDB chatRoomViews.");
+        
+        kafkaProducerService.sendRoomUpdatedEvent(savedRoomView);
     }
 
     public void handleMessageSentEvent(MessageSentEvent event) {
@@ -71,12 +84,24 @@ public class ChatProjectionService {
             lastMsg.setSenderId(event.getSenderId());
             lastMsg.setContent(event.getContent());
             lastMsg.setSentAt(sentAt);
+
+            if (roomView.getUnreadStatus() != null) {
+                List<Long> participantIds = roomView.getParticipantIds();
+                Map<Long, Boolean> unreadStatus = participantIds.stream()
+                .collect(Collectors.toMap(
+                    id -> id, 
+                    id -> true 
+                ));
+                roomView.setUnreadStatus(unreadStatus);
+            }
             
             roomView.setLastMessage(lastMsg);
             roomView.setUpdatedAt(sentAt);
             
-            chatRoomViewRepository.save(roomView);
+            ChatRoomView updatedRoomView = chatRoomViewRepository.save(roomView);
             System.out.println("--- Projected Message (ID: " + event.getMessageId() + ") to MongoDB messages and updated ChatRoomView.");
+            
+            kafkaProducerService.sendRoomUpdatedEvent(updatedRoomView);
         });
     }
 
@@ -102,6 +127,19 @@ public class ChatProjectionService {
         readMarkerRepository.save(marker);
         
         System.out.println("--- Projected Read Marker for (Room: " + roomId + ", Customer: " + customerId + ") to Message ID " + event.getLastReadMessageId() + ".");
+
+        chatRoomViewRepository.findById(roomId).ifPresent(roomView -> {
+            if (roomView.getUnreadStatus() != null && roomView.getUnreadStatus().containsKey(customerId)) {
+                roomView.getUnreadStatus().put(customerId, false);
+                chatRoomViewRepository.save(roomView);
+
+                kafkaProducerService.sendReadStatusUpdatedEvent(
+                    roomId, 
+                    customerId, 
+                    false
+                );
+            }
+        });
     }
 
     public List<ChatRoomView> getRoomsByCustomerId(Long customerId) {
