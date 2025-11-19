@@ -12,7 +12,9 @@ import com.example.chat_query_service.repository.ChatRoomViewRepository;
 import com.example.chat_query_service.repository.MessageDocumentRepository;
 import com.example.chat_query_service.repository.ReadMarkerRepository;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
@@ -140,6 +142,19 @@ public class ChatProjectionService {
                 );
             }
         });
+    }
+
+    public void enforceRoomMembership(Long roomId, Long customerId) {
+        if (!checkRoomMembership(roomId, customerId)) { 
+            throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN, 
+                "Access Denied: Customer " + customerId + " is not a participant of Room " + roomId
+            );
+        }
+    }
+
+    public boolean checkRoomMembership(Long roomId, Long customerId) {
+        return chatRoomViewRepository.existsByRoomIdAndParticipantIdsContaining(roomId, customerId);
     }
 
     public List<ChatRoomView> getRoomsByCustomerId(Long customerId) {

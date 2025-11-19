@@ -100,6 +100,23 @@ public class CustomerController {
         }
     }
 
+    @GetMapping("/info/fullName/{fullName}")
+    public ResponseEntity<GenericResponse<List<Customer>>> getCustomerInfoByFullName(@PathVariable String fullName) {
+        if (fullName == null || fullName.isEmpty()) {
+            return ResponseEntity.badRequest().body(GenericResponse.failure("Full name cannot be empty."));
+        }
+        
+        List<Customer> customers = customerService.searchCustomerByFullName(fullName);
+
+        customers.forEach(c -> c.setPassword(null));
+
+        if (customers.isEmpty()) {
+            return ResponseEntity.ok(GenericResponse.success("No customers found matching full name.", customers));
+        } else {
+            return ResponseEntity.ok(GenericResponse.success("Customers retrieved successfully.", customers));
+        }
+    }
+
     @GetMapping("/fullName/customerId/{customerId}")
     public ResponseEntity<GenericResponse<String>> getCustomerFullName(@PathVariable Long customerId) {
         Optional<Customer> customerOpt = customerService.getCustomerById(customerId);

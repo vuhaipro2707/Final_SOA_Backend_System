@@ -7,17 +7,17 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
 import com.example.websocket_service.dto.TypingMessageRequest;
 import com.example.websocket_service.service.OnlineStatusService;
-import com.example.websocket_service.service.TypingStatusManager;
+import com.example.websocket_service.service.TypingStatusService;
 
 @Controller
 public class WebSocketController {
 
     private final OnlineStatusService onlineStatusService;
-    private final TypingStatusManager typingStatusManager;
+    private final TypingStatusService typingStatusService;
 
-    public WebSocketController(OnlineStatusService onlineStatusService, TypingStatusManager typingStatusManager) {
+    public WebSocketController(OnlineStatusService onlineStatusService, TypingStatusService typingStatusService) {
         this.onlineStatusService = onlineStatusService;
-        this.typingStatusManager = typingStatusManager;
+        this.typingStatusService = typingStatusService;
     }
 
     @MessageMapping("/echo")
@@ -40,9 +40,9 @@ public class WebSocketController {
         Long roomId = message.getRoomId();
         System.out.println("--- Received typing status from user " + customerId + " in room " + roomId + ": isTyping=" + message.getIsTyping());
         if (message.getIsTyping() == 1) {
-            typingStatusManager.renewTypingStatus(customerId, roomId);
+            typingStatusService.renewTypingStatus(customerId, roomId);
         } else {
-            typingStatusManager.stopTypingStatus(customerId, roomId);
+            typingStatusService.stopTypingStatus(customerId, roomId);
         }
     }
 }

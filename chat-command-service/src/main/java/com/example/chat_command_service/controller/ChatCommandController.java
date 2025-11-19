@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import com.example.chat_command_service.dto.GenericResponse;
 
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 public class ChatCommandController {
@@ -25,16 +26,25 @@ public class ChatCommandController {
 
     @PostMapping("/message")
     public ResponseEntity<GenericResponse<Void>> sendMessage(@RequestBody SendMessageRequest request, Authentication authentication) {
-        if (request.getRoomId() == null || request.getContent() == null || request.getContent().isEmpty()) {
+        Long customerId = Long.parseLong(authentication.getPrincipal().toString());
+        Long roomId = request.getRoomId();
+        String content = request.getContent();
+        if (roomId == null || content == null || content.isEmpty()) {
             return ResponseEntity.badRequest().body(GenericResponse.failure("roomId and content cannot be empty."));
+        }
+
+        try {
+            chatCommandService.enforceRoomMembership(roomId, customerId);
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(GenericResponse.failure("Forbidden: " + e.getReason()));
         }
         
         Long senderId = Long.parseLong(authentication.getPrincipal().toString());
         
         chatCommandService.processNewMessage(
-            request.getRoomId(), 
+            roomId,
             senderId, 
-            request.getContent()
+            content
         );
 
         return ResponseEntity.ok(GenericResponse.success("Message command (Write) processed and event published successfully."));
@@ -74,6 +84,7 @@ public class ChatCommandController {
         }
         
         try {
+            chatCommandService.enforceRoomMembership(request.getRoomId(), Long.parseLong(authentication.getPrincipal().toString()));
             Long customerId = Long.parseLong(authentication.getPrincipal().toString());
             
             chatCommandService.processReadMarkerUpdate(
@@ -83,6 +94,8 @@ public class ChatCommandController {
             );
 
             return ResponseEntity.ok(GenericResponse.success("Read Marker command (Write) processed and event published successfully."));
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(GenericResponse.failure("Forbidden: " + e.getReason()));
         } catch (NumberFormatException e) {
              return ResponseEntity.status(400).body(GenericResponse.failure("Invalid customer ID format in authentication context."));
         } catch (Exception e) {

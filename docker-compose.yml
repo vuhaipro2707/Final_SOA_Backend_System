@@ -170,6 +170,7 @@ services:
       - "6379"
     networks:
       - chat_network
+    command: redis-server --notify-keyspace-events KEx
 
   kafka:
     image: apache/kafka:4.1.0

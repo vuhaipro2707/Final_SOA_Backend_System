@@ -32,10 +32,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws/chat")
                 // 1. Chỉ định rõ origin của client (từ log của bạn là http://localhost:5500)
-                .setAllowedOrigins("http://localhost:5500")
+                .setAllowedOriginPatterns("*")
                 
                 // 2. Bật hỗ trợ SockJS (khớp với client đang dùng new SockJS(...))
-                .withSockJS();
+                .withSockJS()
+                ;
     }
     
     @Override

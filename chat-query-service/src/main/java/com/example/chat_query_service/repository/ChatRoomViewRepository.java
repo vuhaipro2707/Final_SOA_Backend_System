@@ -10,4 +10,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ChatRoomViewRepository extends MongoRepository<ChatRoomView, Long> {
     List<ChatRoomView> findByParticipantIdsContainingOrderByUpdatedAtDesc(Long customerId);
+    
+    boolean existsByRoomIdAndParticipantIdsContaining(Long roomId, Long customerId);
 }

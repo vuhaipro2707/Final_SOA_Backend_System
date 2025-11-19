@@ -294,6 +294,17 @@
                     </div>
                     <div>
                         <label for="user-search-input" class="block text-sm font-medium text-gray-700">Mời thành viên</label>
+                        <!-- Lựa chọn loại tìm kiếm -->
+                        <div class="flex gap-4 mb-2">
+                            <label class="flex items-center cursor-pointer">
+                                <input type="radio" name="search-type" value="phoneNumber" checked class="mr-2">
+                                <span class="text-sm text-gray-700">Số điện thoại</span>
+                            </label>
+                            <label class="flex items-center cursor-pointer">
+                                <input type="radio" name="search-type" value="fullName" class="mr-2">
+                                <span class="text-sm text-gray-700">Họ và tên</span>
+                            </label>
+                        </div>
                         <div class="flex gap-2 mb-2">
                             <input id="user-search-input" type="text" placeholder="Nhập số điện thoại..."
                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
@@ -338,7 +349,7 @@
         document.addEventListener('DOMContentLoaded', () => {
 
             // === 1. BIẾN TOÀN CỤC VÀ HẰNG SỐ ===
-            const API_URL = 'http://localhost:8080'; // URL của Nginx Gateway
+            const API_URL = `http://${window.location.hostname}:8080`; // URL của Nginx Gateway - tự động lấy IP/hostname hiện tại
             
             let stompClient = null;
             let currentUser = null; // { customerId, fullName, ... }
@@ -476,8 +487,11 @@
                             console.error('Unauthorized! Logging out.');
                             stompClient?.disconnect();
                             showPage('login-page');
-                            loginError.textContent = data.detail || 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
-                            loginError.classList.remove('hidden');
+                            // Chỉ hiển thị thông báo lỗi nếu không phải là lỗi do checkSession ban đầu
+                            if (options.showAuthError !== false) {
+                                loginError.textContent = data.detail || 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
+                                loginError.classList.remove('hidden');
+                            }
                         }
                         return Promise.reject(data);
                     }
@@ -560,7 +574,7 @@
             // Kiểm tra session khi load trang
             async function checkSession() {
                 try {
-                    const data = await apiFetch('/customer/info');
+                    const data = await apiFetch('/customer/info', { showAuthError: false });
                     if (data.success) {
                         currentUser = data.data;
                         currentUserName.textContent = currentUser.fullName;
@@ -579,6 +593,8 @@
                     }
                 } catch (error) {
                     console.log('Chưa đăng nhập hoặc session hết hạn');
+                    // Ẩn thông báo lỗi khi reload trang
+                    loginError.classList.add('hidden');
                 }
                 // Nếu không có session, hiển thị trang đăng nhập
                 showPage('login-page');
@@ -883,18 +899,26 @@
             cancelModalBtn.addEventListener('click', closeModal);
             createRoomModal.addEventListener('click', closeModal); // Đóng khi click ra ngoài
 
-            // Tìm kiếm user theo số điện thoại - CHỈ KHI BẤM NÚT
+            // Tìm kiếm user theo số điện thoại hoặc họ tên - CHỈ KHI BẤM NÚT
             fetchUserBtn.addEventListener('click', async () => {
-                const phoneNumber = userSearchInput.value.trim();
+                const searchValue = userSearchInput.value.trim();
+                const searchType = document.querySelector('input[name="search-type"]:checked').value;
                 
-                if (phoneNumber.length < 3) {
-                    userSearchResults.innerHTML = '<p class="p-3 text-sm text-gray-500">Vui lòng nhập ít nhất 3 số</p>';
+                if (searchValue.length < 3) {
+                    userSearchResults.innerHTML = `<p class="p-3 text-sm text-gray-500">Vui lòng nhập ít nhất 3 ${searchType === 'phoneNumber' ? 'số' : 'ký tự'}</p>`;
                     userSearchResults.classList.remove('hidden');
                     return;
                 }
                 
                 try {
-                    const data = await apiFetch(`/customer/info/phoneNumber/${phoneNumber}`);
+                    let endpoint = '';
+                    if (searchType === 'phoneNumber') {
+                        endpoint = `/customer/info/phoneNumber/${searchValue}`;
+                    } else if (searchType === 'fullName') {
+                        endpoint = `/customer/info/fullName/${searchValue}`;
+                    }
+                    
+                    const data = await apiFetch(endpoint);
                     if (data.success && data.data.length > 0) {
                         renderSearchResults(data.data);
                     } else {
@@ -906,6 +930,19 @@
                     userSearchResults.innerHTML = '<p class="p-3 text-sm text-red-500">Đã xảy ra lỗi</p>';
                     userSearchResults.classList.remove('hidden');
                 }
+            });
+            
+            // Thay đổi placeholder khi chọn loại tìm kiếm
+            document.querySelectorAll('input[name="search-type"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    if (e.target.value === 'phoneNumber') {
+                        userSearchInput.placeholder = 'Nhập số điện thoại...';
+                    } else if (e.target.value === 'fullName') {
+                        userSearchInput.placeholder = 'Nhập họ và tên...';
+                    }
+                    userSearchResults.classList.add('hidden');
+                    userSearchInput.value = '';
+                });
             });
             
             // Cho phép enter để tìm kiếm
@@ -1325,8 +1362,8 @@
                 }
                 
                 const now = Date.now();
-                // Gửi typing indicator nếu đã qua 3 giây kể từ lần gửi cuối (hoặc lần đầu)
-                if (now - lastTypingTime >= 3000) {
+                // Gửi typing indicator nếu đã qua 1 giây kể từ lần gửi cuối (hoặc lần đầu)
+                if (now - lastTypingTime >= 1000) {
                     sendTypingIndicator(true);
                     lastTypingTime = now;
                 }

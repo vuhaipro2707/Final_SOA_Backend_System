@@ -16,14 +16,22 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
+import com.example.websocket_service.service.WebSocketService;
+
 import java.util.Collections;
-// import java.util.List;
 
 @Component
 public class AuthChannelInterceptor implements ChannelInterceptor {
 
     @Autowired
     private JwtDecoder jwtDecoder;
+    @Autowired
+    private WebSocketService webSocketService;
+
+    private final String ROOM_TOPIC_PREFIX = "/topic/message/roomId/";
+    private final String ONLINE_STATUS_TOPIC_PREFIX = "/topic/onlineStatus/roomId/";
+    private final String READ_MARKER_TOPIC_PREFIX = "/topic/readMarkers/roomId/";
+    private final String TYPING_TOPIC_PREFIX = "/topic/typing/roomId/";
 
     // @Override // For Production (use Cookie to store JWT)
     // public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -89,6 +97,7 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
         System.err.flush();
         StompHeaderAccessor accessor = 
             MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+        System.out.println(accessor.getNativeHeader("jwt_token"));
         
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             String jwtToken = accessor.getFirstNativeHeader("jwt_token");
@@ -122,7 +131,47 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
                 throw new SecurityException("Authentication failed due to internal error.");
             }
         }
-        
+
+        if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+            String destination = accessor.getDestination();
+            String customerId = accessor.getUser().getName();
+
+            if (destination != null && (
+                destination.startsWith(ROOM_TOPIC_PREFIX) || 
+                destination.startsWith(ONLINE_STATUS_TOPIC_PREFIX) ||
+                destination.startsWith(READ_MARKER_TOPIC_PREFIX) ||
+                destination.startsWith(TYPING_TOPIC_PREFIX)
+            )) {
+                try {
+                    Long roomId = extractRoomIdFromDestination(destination);
+                    Long userId = Long.parseLong(customerId);
+                    
+                    if (roomId != null) {
+                        if (!webSocketService.isParticipantOfRoom(roomId, userId)) {
+                            System.err.println("Subscription Denied: User " + userId + " is not a member of Room " + roomId + " for destination " + destination);
+                            throw new SecurityException("Access Denied to room topic.");
+                        }
+                    }
+                    
+                } catch (Exception e) {
+                    System.err.println("Subscription authentication error: " + e.getMessage());
+                    throw new SecurityException("Access Denied: " + e.getMessage());
+                }
+            }
+        }
+
         return message;
+    }
+
+    private Long extractRoomIdFromDestination(String destination) {
+        String[] parts = destination.split("/");
+        if (parts.length >= 5 && parts[parts.length - 2].equals("roomId")) {
+            try {
+                return Long.parseLong(parts[parts.length - 1]);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
     }
 }

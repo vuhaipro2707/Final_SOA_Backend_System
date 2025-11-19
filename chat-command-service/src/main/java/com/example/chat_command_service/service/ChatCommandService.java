@@ -13,15 +13,19 @@ import com.example.chat_command_service.kafka.dto.RoomCreatedEvent.ParticipantDT
 import com.example.chat_command_service.kafka.KafkaProducerService;
 
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.example.chat_command_service.dto.GenericResponse;
 import reactor.core.publisher.Mono;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ChatCommandService {
@@ -44,6 +48,7 @@ public class ChatCommandService {
     
     @Transactional
     public Message processNewMessage(Long roomId, Long senderId, String content) {
+        checkRoomMembership(roomId, senderId);
         Message message = new Message();
         message.setRoomId(roomId);
         message.setCustomerId(senderId);
@@ -70,7 +75,6 @@ public class ChatCommandService {
 
     @Transactional
     public Room processNewRoom(String roomName, Long creatorId, List<Long> targetCustomerIds) {
-        
         Instant now = Instant.now();
         List<Long> allParticipantIds = new ArrayList<>(targetCustomerIds);
         if (!allParticipantIds.contains(creatorId)) {
@@ -118,6 +122,7 @@ public class ChatCommandService {
 
     @Transactional
     public void processReadMarkerUpdate(Long roomId, Long customerId, Long messageId) {
+        checkRoomMembership(roomId, customerId);
         roomParticipantRepository.updateLastReadMessageId(roomId, customerId, messageId);
         
         System.out.println("--- Updated RoomParticipant for Customer ID " + customerId + " in Room ID " + roomId + " to Message ID " + messageId);
@@ -161,6 +166,20 @@ public class ChatCommandService {
         } catch (Exception e) {
             System.err.println("Failed to fetch customer name for ID " + customerId + ": " + e.getMessage());
             throw new RuntimeException("Failed to retrieve user information for ID: " + customerId, e);
+        }
+    }
+
+    private boolean checkRoomMembership(Long roomId, Long customerId) {
+        Optional<RoomParticipant> participantOpt = roomParticipantRepository.findByRoomIdAndCustomerId(roomId, customerId);
+        return participantOpt.isPresent();
+    }
+
+    public void enforceRoomMembership(Long roomId, Long customerId) {
+        if (!checkRoomMembership(roomId, customerId)) { 
+            throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN, 
+                "Access Denied: Customer " + customerId + " is not a participant of Room " + roomId
+            );
         }
     }
 }

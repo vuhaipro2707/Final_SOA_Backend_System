@@ -24,6 +24,10 @@ public class CustomerService {
     public List<Customer> searchCustomerByPhoneNumber(String phoneNumber) {
         return customerRepository.findByPhoneNumberContaining(phoneNumber);
     }
+
+    public List<Customer> searchCustomerByFullName(String fullName) {
+        return customerRepository.findByFullNameContaining(fullName);
+    }
     
     @Transactional
     public Optional<Customer> updateCustomerInfo(Long customerId, UpdateCustomerInfoRequest request) {
@@ -34,15 +38,19 @@ public class CustomerService {
         }
 
         Customer customer = customerOpt.get();
+        
+        List<Customer> existingCustomerList = customerRepository.findByEmailOrPhoneNumber(request.getEmail(), request.getPhoneNumber());
 
-        Optional<Customer> existingCustomer = customerRepository.findByEmailOrPhoneNumber(request.getEmail(), request.getPhoneNumber());
-        if (existingCustomer.isPresent() && !existingCustomer.get().getCustomerId().equals(customerId)) {
-             if (existingCustomer.get().getEmail().equals(request.getEmail())) {
-                 throw new IllegalArgumentException("Email already in use.");
-             }
-             if (existingCustomer.get().getPhoneNumber().equals(request.getPhoneNumber())) {
-                 throw new IllegalArgumentException("Phone number already in use.");
-             }
+        for (Customer existingCustomer : existingCustomerList) {
+            if (!existingCustomer.getCustomerId().equals(customerId)) {
+                if (existingCustomer.getEmail().equals(request.getEmail())) {
+                    System.out.println("Email already in use.");
+                    throw new IllegalArgumentException("Email already in use.");
+                }
+                if (existingCustomer.getPhoneNumber().equals(request.getPhoneNumber())) {
+                    throw new IllegalArgumentException("Phone number already in use.");
+                }
+            }
         }
         
         customer.setFullName(request.getFullName());

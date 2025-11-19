@@ -39,6 +39,7 @@ public class OnlineStatusService {
         } else {
             redisTemplate.opsForValue().set(key, "", TTL_SECONDS, TimeUnit.SECONDS);
             System.out.println("Created and extended online status for user " + customerId);
+            notifyStatusChange(customerId, true);
         }
     }
 
@@ -55,7 +56,7 @@ public class OnlineStatusService {
     }
 
     private List<Long> getRoomIdsForUser(Long customerId) {
-        String uri = CHAT_QUERY_SERVICE_BASE_URL + "/internal/rooms/customer/" + customerId;
+        String uri = CHAT_QUERY_SERVICE_BASE_URL + "/internal/rooms/customerId/" + customerId;
         try {
             GenericResponse<List<ChatRoomView>> response = webClient.get()
                 .uri(uri)
@@ -77,7 +78,7 @@ public class OnlineStatusService {
         }
     }
 
-    private void notifyStatusChange(Long customerId, boolean online) {
+    void notifyStatusChange(Long customerId, boolean online) {
         List<Long> roomIds = getRoomIdsForUser(customerId);
         
         UserOnlineStatus status = new UserOnlineStatus(customerId, online);
