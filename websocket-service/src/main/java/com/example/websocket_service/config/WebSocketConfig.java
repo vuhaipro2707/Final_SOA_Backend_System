@@ -22,21 +22,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         config.setApplicationDestinationPrefixes("/app");
     }
 
-    // @Override
-    // public void registerStompEndpoints(StompEndpointRegistry registry) {
-    //     registry.addEndpoint("/ws/chat")
-    //             .setAllowedOriginPatterns("*");
-    // }
-
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // Endpoint cho native WebSocket (không dùng SockJS)
         registry.addEndpoint("/ws/chat")
-                // 1. Chỉ định rõ origin của client (từ log của bạn là http://localhost:5500)
+                .setAllowedOriginPatterns("*");
+        
+        // Endpoint riêng cho SockJS (fallback cho các trình duyệt không hỗ trợ WebSocket)
+        registry.addEndpoint("/ws/chat-sockjs")
                 .setAllowedOriginPatterns("*")
-                
-                // 2. Bật hỗ trợ SockJS (khớp với client đang dùng new SockJS(...))
-                .withSockJS()
-                ;
+                .withSockJS();
     }
     
     @Override

@@ -58,12 +58,12 @@
             <form id="login-form" class="space-y-6">
                 <div>
                     <label for="username" class="block text-sm font-medium text-gray-700">Tên đăng nhập</label>
-                    <input id="username" name="username" type="text" required value="user1"
+                    <input id="username" name="username" type="text" required
                            class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
                 <div>
                     <label for="password" class="block text-sm font-medium text-gray-700">Mật khẩu</label>
-                    <input id="password" name="password" type="password" required value="123"
+                    <input id="password" name="password" type="password" required
                            class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
                 <button type="submit"
@@ -71,6 +71,135 @@
                     Đăng nhập
                 </button>
                 <p id="login-error" class="text-sm text-center text-red-600 hidden"></p>
+                <div class="flex justify-between items-center text-sm pt-2">
+                    <a href="#" id="forgot-password-link" class="text-indigo-600 hover:text-indigo-700 font-medium">Quên mật khẩu?</a>
+                    <a href="#" id="register-link" class="text-indigo-600 hover:text-indigo-700 font-medium">Đăng ký tài khoản</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========== TRANG ĐĂNG KÝ ========== -->
+    <div id="register-page" class="hidden flex items-center justify-center min-h-screen bg-gray-200">
+        <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg">
+            <h1 class="text-3xl font-bold text-center text-gray-800">Đăng ký tài khoản</h1>
+            <form id="register-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
+                    <input name="fullName" type="text" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label>
+                    <input name="username" type="text" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+                    <input name="password" type="password" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Xác nhận mật khẩu</label>
+                    <input name="confirmPassword" type="password" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input name="email" type="email" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
+                    <input name="phoneNumber" type="tel" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Màu đại diện (Avatar Color)</label>
+                    <div class="flex items-center space-x-3">
+                        <input id="avatar-color-picker" name="avatarColor" type="color" value="#4CAF50" required
+                               class="h-12 w-20 border-2 border-gray-300 rounded-lg cursor-pointer">
+                        <input id="avatar-color-text" type="text" value="#4CAF50" readonly
+                               class="flex-1 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 font-mono text-sm">
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Chọn màu sắc đại diện cho avatar của bạn</p>
+                </div>
+                <button type="submit"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-semibold transition-colors">
+                    Đăng ký
+                </button>
+                <p id="register-error" class="text-sm text-center text-red-600 hidden"></p>
+                <p id="register-success" class="text-sm text-center text-green-600 hidden"></p>
+                <div class="text-center text-sm">
+                    <span class="text-gray-600">Đã có tài khoản? </span>
+                    <a href="#" id="back-to-login-link" class="text-indigo-600 hover:text-indigo-700 font-medium">Đăng nhập</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========== TRANG QUÊN MẬT KHẨU ========== -->
+    <div id="forgot-password-page" class="hidden flex items-center justify-center min-h-screen bg-gray-200">
+        <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg">
+            <h1 class="text-3xl font-bold text-center text-gray-800">Quên mật khẩu</h1>
+            
+            <!-- Bước 1: Nhập email -->
+            <form id="forgot-password-initiate-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input name="email" type="email" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <button type="submit"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-semibold transition-colors">
+                    Gửi mã OTP
+                </button>
+                <p id="forgot-password-initiate-error" class="text-sm text-center text-red-600 hidden"></p>
+                <p id="forgot-password-initiate-success" class="text-sm text-center text-green-600 hidden"></p>
+                <div class="text-center text-sm">
+                    <a href="#" id="back-to-login-from-forgot" class="text-indigo-600 hover:text-indigo-700 font-medium">Quay lại đăng nhập</a>
+                </div>
+            </form>
+
+            <!-- Bước 2: Nhập OTP -->
+            <form id="forgot-password-confirm-form" class="hidden space-y-4">
+                <p class="text-sm text-gray-600 text-center">Mã OTP đã được gửi đến email của bạn</p>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mã OTP</label>
+                    <input name="otp" type="text" required maxlength="6"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center text-2xl tracking-widest">
+                </div>
+                <button type="submit"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-semibold transition-colors">
+                    Xác nhận OTP
+                </button>
+                <button type="button" id="resend-otp-btn"
+                        class="w-full border border-indigo-600 text-indigo-600 hover:bg-indigo-50 py-3 rounded-lg font-semibold transition-colors">
+                    Gửi lại mã OTP
+                </button>
+                <p id="forgot-password-confirm-error" class="text-sm text-center text-red-600 hidden"></p>
+                <p id="forgot-password-confirm-success" class="text-sm text-center text-green-600 hidden"></p>
+            </form>
+
+            <!-- Bước 3: Đặt lại mật khẩu -->
+            <form id="forgot-password-reset-form" class="hidden space-y-4">
+                <p class="text-sm text-green-600 text-center font-medium">OTP xác nhận thành công! Đặt mật khẩu mới</p>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu mới</label>
+                    <input name="newPassword" type="password" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Xác nhận mật khẩu mới</label>
+                    <input name="confirmPassword" type="password" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <button type="submit"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-semibold transition-colors">
+                    Đặt lại mật khẩu
+                </button>
+                <p id="forgot-password-reset-error" class="text-sm text-center text-red-600 hidden"></p>
+                <p id="forgot-password-reset-success" class="text-sm text-center text-green-600 hidden"></p>
             </form>
         </div>
     </div>
@@ -82,13 +211,34 @@
         <aside id="sidebar" class="w-full md:w-1/3 lg:w-1/4 h-full flex flex-col border-r border-gray-200 bg-gray-50">
             <!-- Header cột trái: Thông tin user và nút tạo phòng -->
             <header class="p-4 border-b border-gray-200 flex items-center justify-between">
-                <div id="user-profile" class="flex items-center gap-3 cursor-pointer hover:bg-gray-100 rounded-lg p-2 -m-2 transition-colors">
-                    <div id="current-user-avatar" class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold flex-shrink-0" style="background-color: #6366f1">
-                        U
+                <div class="relative">
+                    <div id="user-profile" class="flex items-center gap-3 cursor-pointer hover:bg-gray-100 rounded-lg p-2 -m-2 transition-colors">
+                        <div id="current-user-avatar" class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold flex-shrink-0" style="background-color: #6366f1">
+                            U
+                        </div>
+                        <div>
+                            <h2 id="current-user-name" class="font-semibold text-gray-800">Đang tải...</h2>
+                            <p id="current-user-id" class="text-xs text-gray-500">ID: ...</p>
+                        </div>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-gray-500"></i>
                     </div>
-                    <div>
-                        <h2 id="current-user-name" class="font-semibold text-gray-800">Đang tải...</h2>
-                        <p id="current-user-id" class="text-xs text-gray-500">ID: ...</p>
+                    <!-- Dropdown Menu -->
+                    <div id="user-dropdown" class="hidden absolute top-full left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                        <div class="py-1">
+                            <button id="view-edit-profile-btn" class="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3 text-gray-700">
+                                <i data-lucide="user" class="w-4 h-4"></i>
+                                <span>Xem/Sửa thông tin</span>
+                            </button>
+                            <button id="change-password-btn" class="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3 text-gray-700">
+                                <i data-lucide="key" class="w-4 h-4"></i>
+                                <span>Đổi mật khẩu</span>
+                            </button>
+                            <hr class="my-1 border-gray-200">
+                            <button id="dropdown-logout-btn" class="w-full px-4 py-2 text-left hover:bg-red-50 text-red-600 flex items-center gap-3">
+                                <i data-lucide="log-out" class="w-4 h-4"></i>
+                                <span>Đăng xuất</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
@@ -141,7 +291,9 @@
                 <!-- Header phòng chat -->
                 <header class="p-4 flex items-center justify-between border-b border-gray-200 bg-white shadow-sm z-10">
                     <div class="flex items-center gap-3">
-                        <img id="chat-header-avatar" src="https://placehold.co/40x40/10b981/white?text=G" alt="Group Avatar" class="w-10 h-10 rounded-full bg-emerald-500">
+                        <div id="chat-header-avatar" class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-semibold cursor-pointer hover:opacity-80 transition-opacity" title="Xem thông tin phòng">
+                            G
+                        </div>
                         <div>
                             <h2 id="chat-header-name" class="text-lg font-semibold text-gray-900">Tên phòng chat</h2>
                             <p id="chat-header-status" class="text-xs text-green-500">... đang hoạt động</p>
@@ -225,9 +377,82 @@
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <div id="room-members-list" class="space-y-3 max-h-96 overflow-y-auto">
-                <!-- Danh sách thành viên sẽ được render bởi JS -->
+            
+            <!-- Thông tin chi tiết phòng -->
+            <div class="mb-6 space-y-4">
+                <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div id="room-info-avatar" class="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                        <!-- Avatar sẽ được render bởi JS -->
+                    </div>
+                    <div class="flex-1">
+                        <h4 id="room-info-name" class="font-semibold text-gray-800"></h4>
+                        <p id="room-info-id" class="text-xs text-gray-500"></p>
+                    </div>
+                </div>
+                
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between py-2 border-b border-gray-100">
+                        <span class="text-gray-600">Người tạo:</span>
+                        <span id="room-info-creator" class="font-medium text-gray-800"></span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-gray-100">
+                        <span class="text-gray-600">Ngày tạo:</span>
+                        <span id="room-info-created-at" class="font-medium text-gray-800"></span>
+                    </div>
+                    <div class="flex justify-between py-2">
+                        <span class="text-gray-600">Số thành viên:</span>
+                        <span id="room-info-member-count" class="font-medium text-gray-800"></span>
+                    </div>
+                </div>
             </div>
+            
+            <!-- Danh sách thành viên -->
+            <div>
+                <h4 class="text-sm font-semibold text-gray-700 mb-3">Thành viên</h4>
+                <div id="room-members-list" class="space-y-2 max-h-64 overflow-y-auto">
+                    <!-- Danh sách thành viên sẽ được render bởi JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MODAL ĐỔI MẬT KHẨU ========== -->
+    <div id="change-password-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 m-4" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Đổi mật khẩu</h3>
+                <button id="close-change-password-btn" class="text-gray-400 hover:text-gray-600">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            <form id="change-password-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu hiện tại</label>
+                    <input id="current-password" type="password" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu mới</label>
+                    <input id="new-password" type="password" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Xác nhận mật khẩu mới</label>
+                    <input id="confirm-new-password" type="password" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <p id="change-password-error" class="text-sm text-red-600 hidden"></p>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" id="cancel-change-password-btn"
+                            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        Hủy
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                        Đổi mật khẩu
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -463,6 +688,26 @@
             }
 
             /**
+             * Định dạng ngày giờ đầy đủ (ISO string -> DD/MM/YYYY HH:mm)
+             */
+            function formatFullDateTime(isoString) {
+                if (!isoString) return '';
+                try {
+                    const date = new Date(isoString);
+                    return date.toLocaleString('vi-VN', { 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        year: 'numeric',
+                        hour: '2-digit', 
+                        minute: '2-digit'
+                    });
+                } catch (e) {
+                    console.error('Invalid date string:', isoString);
+                    return '';
+                }
+            }
+
+            /**
              * Hàm fetch chung (sẽ tự động gửi cookie)
              * @param {string} url - URL (không bao gồm API_URL)
              * @param {object} options - Tùy chọn của Fetch API
@@ -617,6 +862,9 @@
                     });
 
                     if (data.message === "Login successful") {
+                        // ⭐ THÊM DELAY NHỎ ĐỂ BROWSER LƯU COOKIE
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        
                         // 1. Lấy thông tin user hiện tại
                         await fetchCurrentUser();
                         // 2. Tải danh sách phòng
@@ -719,7 +967,7 @@
                 }
 
                 // Dựa theo nginx.conf và WebSocketConfig.java
-                const socket = new SockJS(`${API_URL}/ws/chat`);
+                const socket = new SockJS(`${API_URL}/ws/chat-sockjs`);
                 stompClient = Stomp.over(socket);
 
                 // Dựa theo AuthChannelInterceptor.java (bản active)
@@ -1027,19 +1275,7 @@
             }
 
             // === LOGIC MODAL EDIT PROFILE ===
-            userProfile.addEventListener('click', () => {
-                if (!currentUser) return;
-                
-                // Điền thông tin hiện tại
-                document.getElementById('edit-fullname').value = currentUser.fullName;
-                document.getElementById('edit-email').value = currentUser.email || '';
-                document.getElementById('edit-phone').value = currentUser.phoneNumber || '';
-                document.getElementById('edit-avatar-color').value = currentUser.avatarColor || '#6366f1';
-                
-                editProfileError.classList.add('hidden');
-                editProfileModal.classList.remove('hidden');
-                lucide.createIcons();
-            });
+            // NOTE: Logic mở modal edit profile đã được chuyển vào dropdown menu (viewEditProfileBtn)
             
             function closeEditProfileModal() {
                 editProfileModal.classList.add('hidden');
@@ -1156,10 +1392,12 @@
                 welcomeMessage.classList.add('hidden');
                 activeChat.classList.remove('hidden');
 
-                // Cập nhật header
+                // Cập nhật header với avatar div thay vì img
                 chatHeaderName.textContent = roomData.roomName;
                 const avatarText = roomData.roomName.substring(0, 2).toUpperCase();
-                chatHeaderAvatar.src = `https://placehold.co/40x40/10b981/white?text=${avatarText}`;
+                const avatarColor = getUserAvatarColor(roomData.roomId);
+                chatHeaderAvatar.style.backgroundColor = avatarColor;
+                chatHeaderAvatar.textContent = avatarText;
                 chatHeaderStatus.textContent = 'Đang tải trạng thái...'; // Sẽ được cập nhật
                 
                 // Reset tin nhắn
@@ -1309,7 +1547,7 @@
                                 ${senderName.charAt(0).toUpperCase()}
                             </div>
                             <div class="message-bubble-theirs max-w-xs lg:max-w-xl p-3 rounded-t-2xl rounded-r-2xl bg-white text-gray-800 shadow">
-                                <p class="text-sm font-semibold mb-1" style="color: ${avatarColor}">${senderName}</p>
+                                <p class="text-sm font-semibold text-orange-600 mb-1" style="color: ${avatarColor}">${senderName}</p>
                                 <p class="text-sm">${msg.content}</p>
                                 <span class="block text-xs text-gray-500 text-right mt-1">${time}</span>
                             </div>
@@ -1439,12 +1677,36 @@
                 chatHeaderStatus.textContent = `${onlineCount}/${totalCount} người đang hoạt động`;
             }
             
-            // Xử lý nút info - hiển thị modal thành viên
-            chatInfoBtn.addEventListener('click', async () => {
-                if (!currentRoomId || currentRoomOnlineStatus.length === 0) return;
+            // Hàm hiển thị modal thông tin phòng
+            async function showRoomInfoModal() {
+                if (!currentRoomId) return;
+                
+                const roomData = allRooms.get(parseInt(currentRoomId));
+                if (!roomData) return;
                 
                 // Tải lại trạng thái mới nhất
                 await loadOnlineStatus(currentRoomId);
+                
+                // Cập nhật thông tin phòng
+                const avatarText = roomData.roomName.substring(0, 2).toUpperCase();
+                const avatarColor = getUserAvatarColor(roomData.roomId);
+                
+                const roomInfoAvatar = document.getElementById('room-info-avatar');
+                roomInfoAvatar.style.backgroundColor = avatarColor;
+                roomInfoAvatar.textContent = avatarText;
+                
+                document.getElementById('room-info-name').textContent = roomData.roomName;
+                document.getElementById('room-info-id').textContent = `ID: ${roomData.roomId}`;
+                
+                // Lấy tên người tạo
+                const creatorName = await getCachedUserName(roomData.createdBy);
+                document.getElementById('room-info-creator').textContent = creatorName;
+                
+                // Format ngày tạo với đầy đủ ngày giờ
+                document.getElementById('room-info-created-at').textContent = formatFullDateTime(roomData.createdAt);
+                
+                // Số thành viên
+                document.getElementById('room-info-member-count').textContent = `${roomData.participantIds.length} người`;
                 
                 // Render danh sách thành viên
                 roomMembersList.innerHTML = '';
@@ -1454,20 +1716,24 @@
                     const isOnline = status.online;
                     const statusColor = isOnline ? 'bg-green-500' : 'bg-gray-400';
                     const statusText = isOnline ? 'Online' : 'Offline';
+                    const isCreator = status.customerId === roomData.createdBy;
                     
                     const memberHtml = `
-                        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
                             <div class="relative">
-                                <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold" style="background-color: ${avatarColor}">
+                                <div class="w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-sm" style="background-color: ${avatarColor}">
                                     ${userName.charAt(0).toUpperCase()}
                                 </div>
-                                <span class="absolute bottom-0 right-0 w-3 h-3 ${statusColor} border-2 border-white rounded-full"></span>
+                                <span class="absolute bottom-0 right-0 w-2.5 h-2.5 ${statusColor} border-2 border-white rounded-full"></span>
                             </div>
-                            <div class="flex-1">
-                                <p class="font-medium text-gray-800">${userName}</p>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-medium text-gray-800 text-sm truncate">
+                                    ${userName}
+                                    ${isCreator ? '<span class="text-xs text-indigo-600 font-semibold ml-1">(Người tạo)</span>' : ''}
+                                </p>
                                 <p class="text-xs text-gray-500">ID: ${status.customerId}</p>
                             </div>
-                            <span class="text-xs font-medium ${isOnline ? 'text-green-600' : 'text-gray-500'}">${statusText}</span>
+                            <span class="text-xs font-medium ${isOnline ? 'text-green-600' : 'text-gray-500'} whitespace-nowrap">${statusText}</span>
                         </div>
                     `;
                     roomMembersList.insertAdjacentHTML('beforeend', memberHtml);
@@ -1476,7 +1742,13 @@
                 // Hiển thị modal
                 roomInfoModal.classList.remove('hidden');
                 lucide.createIcons(); // Refresh icons
-            });
+            }
+            
+            // Xử lý nút info - hiển thị modal thành viên
+            chatInfoBtn.addEventListener('click', showRoomInfoModal);
+            
+            // Xử lý click vào avatar phòng chat
+            chatHeaderAvatar.addEventListener('click', showRoomInfoModal);
             
             // Đóng modal thông tin phòng
             closeRoomInfoBtn.addEventListener('click', () => {
@@ -1638,6 +1910,534 @@
                 
                 typingIndicator.classList.remove('hidden');
             }
+
+            // === 12. LOGIC ĐĂNG KÝ TÀI KHOẢN ===
+
+            const registerPage = document.getElementById('register-page');
+            const registerForm = document.getElementById('register-form');
+            const registerError = document.getElementById('register-error');
+            const registerSuccess = document.getElementById('register-success');
+            const registerLink = document.getElementById('register-link');
+            const backToLoginLink = document.getElementById('back-to-login-link');
+
+            // Color picker sync
+            const avatarColorPicker = document.getElementById('avatar-color-picker');
+            const avatarColorText = document.getElementById('avatar-color-text');
+            
+            avatarColorPicker.addEventListener('input', (e) => {
+                avatarColorText.value = e.target.value.toUpperCase();
+            });
+
+            // Hiển thị trang đăng ký
+            registerLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginPage.classList.add('hidden');
+                registerPage.classList.remove('hidden');
+                registerForm.reset();
+                registerError.classList.add('hidden');
+                registerSuccess.classList.add('hidden');
+            });
+
+            // Quay lại trang đăng nhập
+            backToLoginLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                registerPage.classList.add('hidden');
+                loginPage.classList.remove('hidden');
+                loginForm.reset();
+                loginError.classList.add('hidden');
+            });
+
+            // Xử lý đăng ký
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                registerError.classList.add('hidden');
+                registerSuccess.classList.add('hidden');
+
+                const fullName = registerForm.fullName.value.trim();
+                const username = registerForm.username.value.trim();
+                const password = registerForm.password.value;
+                const confirmPassword = registerForm.confirmPassword.value;
+                const email = registerForm.email.value.trim();
+                const phoneNumber = registerForm.phoneNumber.value.trim();
+                const avatarColor = registerForm.avatarColor.value;
+
+                // Validate
+                if (password !== confirmPassword) {
+                    registerError.textContent = 'Mật khẩu xác nhận không khớp.';
+                    registerError.classList.remove('hidden');
+                    return;
+                }
+
+                if (password.length < 6) {
+                    registerError.textContent = 'Mật khẩu phải có ít nhất 6 ký tự.';
+                    registerError.classList.remove('hidden');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_URL}/customer/create/account`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            fullName,
+                            username,
+                            password,
+                            email,
+                            phoneNumber,
+                            avatarColor
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        registerSuccess.textContent = 'Đăng ký thành công! Chuyển đến trang đăng nhập...';
+                        registerSuccess.classList.remove('hidden');
+                        registerForm.reset();
+                        
+                        // Chuyển về trang đăng nhập sau 2 giây
+                        setTimeout(() => {
+                            registerPage.classList.add('hidden');
+                            loginPage.classList.remove('hidden');
+                            registerSuccess.classList.add('hidden');
+                        }, 2000);
+                    } else {
+                        registerError.textContent = data.message || 'Đăng ký thất bại.';
+                        registerError.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    registerError.textContent = error.message || 'Lỗi không xác định.';
+                    registerError.classList.remove('hidden');
+                }
+            });
+
+            // === 13. LOGIC QUÊN MẬT KHẨU ===
+
+            const forgotPasswordPage = document.getElementById('forgot-password-page');
+            const forgotPasswordLink = document.getElementById('forgot-password-link');
+            const backToLoginFromForgot = document.getElementById('back-to-login-from-forgot');
+            
+            const forgotPasswordInitiateForm = document.getElementById('forgot-password-initiate-form');
+            const forgotPasswordConfirmForm = document.getElementById('forgot-password-confirm-form');
+            const forgotPasswordResetForm = document.getElementById('forgot-password-reset-form');
+            
+            const forgotPasswordInitiateError = document.getElementById('forgot-password-initiate-error');
+            const forgotPasswordInitiateSuccess = document.getElementById('forgot-password-initiate-success');
+            const forgotPasswordConfirmError = document.getElementById('forgot-password-confirm-error');
+            const forgotPasswordConfirmSuccess = document.getElementById('forgot-password-confirm-success');
+            const forgotPasswordResetError = document.getElementById('forgot-password-reset-error');
+            const forgotPasswordResetSuccess = document.getElementById('forgot-password-reset-success');
+            
+            const resendOtpBtn = document.getElementById('resend-otp-btn');
+            
+            let forgotPasswordEmail = '';
+            let resendCountdown = 0;
+            let resendTimer = null;
+
+            // Hiển thị trang quên mật khẩu
+            forgotPasswordLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginPage.classList.add('hidden');
+                forgotPasswordPage.classList.remove('hidden');
+                
+                // Reset forms
+                forgotPasswordInitiateForm.reset();
+                forgotPasswordInitiateForm.classList.remove('hidden');
+                forgotPasswordConfirmForm.classList.add('hidden');
+                forgotPasswordResetForm.classList.add('hidden');
+                
+                // Hide all messages
+                forgotPasswordInitiateError.classList.add('hidden');
+                forgotPasswordInitiateSuccess.classList.add('hidden');
+                forgotPasswordConfirmError.classList.add('hidden');
+                forgotPasswordConfirmSuccess.classList.add('hidden');
+                forgotPasswordResetError.classList.add('hidden');
+                forgotPasswordResetSuccess.classList.add('hidden');
+            });
+
+            // Quay lại đăng nhập
+            backToLoginFromForgot.addEventListener('click', (e) => {
+                e.preventDefault();
+                forgotPasswordPage.classList.add('hidden');
+                loginPage.classList.remove('hidden');
+            });
+
+            // Bước 1: Gửi OTP
+            forgotPasswordInitiateForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                forgotPasswordInitiateError.classList.add('hidden');
+                forgotPasswordInitiateSuccess.classList.add('hidden');
+
+                forgotPasswordEmail = forgotPasswordInitiateForm.email.value.trim();
+
+                // Disable button và hiển thị loading
+                const submitBtn = forgotPasswordInitiateForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Đang gửi...';
+
+                try {
+                    const response = await fetch(`${API_URL}/customer/forgetPass/initiate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: forgotPasswordEmail })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        forgotPasswordInitiateSuccess.textContent = 'Mã OTP đã được gửi đến email của bạn!';
+                        forgotPasswordInitiateSuccess.classList.remove('hidden');
+                        
+                        // Bắt đầu countdown cho nút resend
+                        startResendCountdown();
+                        
+                        // Chuyển sang form nhập OTP
+                        setTimeout(() => {
+                            forgotPasswordInitiateForm.classList.add('hidden');
+                            forgotPasswordConfirmForm.classList.remove('hidden');
+                        }, 1500);
+                    } else {
+                        forgotPasswordInitiateError.textContent = data.message || 'Gửi OTP thất bại.';
+                        forgotPasswordInitiateError.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    forgotPasswordInitiateError.textContent = error.message || 'Lỗi không xác định.';
+                    forgotPasswordInitiateError.classList.remove('hidden');
+                } finally {
+                    // Khôi phục button
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
+            });
+
+            // Hàm bắt đầu đếm ngược cho nút resend
+            function startResendCountdown() {
+                resendCountdown = 5; // 5 giây
+                resendOtpBtn.disabled = true;
+                
+                // Clear timer cũ nếu có
+                if (resendTimer) clearInterval(resendTimer);
+                
+                // Cập nhật text ngay lập tức
+                resendOtpBtn.textContent = `Gửi lại mã OTP (${resendCountdown}s)`;
+                
+                resendTimer = setInterval(() => {
+                    resendCountdown--;
+                    if (resendCountdown > 0) {
+                        resendOtpBtn.textContent = `Gửi lại mã OTP (${resendCountdown}s)`;
+                    } else {
+                        clearInterval(resendTimer);
+                        resendOtpBtn.disabled = false;
+                        resendOtpBtn.textContent = 'Gửi lại mã OTP';
+                    }
+                }, 1000);
+            }
+
+            // Gửi lại OTP
+            resendOtpBtn.addEventListener('click', async () => {
+                forgotPasswordConfirmError.classList.add('hidden');
+                forgotPasswordConfirmSuccess.classList.add('hidden');
+
+                // Disable button và hiển thị loading
+                resendOtpBtn.disabled = true;
+                const originalText = resendOtpBtn.textContent;
+                resendOtpBtn.textContent = 'Đang gửi...';
+
+                try {
+                    const response = await fetch(`${API_URL}/customer/forgetPass/resend`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: forgotPasswordEmail })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        forgotPasswordConfirmSuccess.textContent = 'Mã OTP mới đã được gửi!';
+                        forgotPasswordConfirmSuccess.classList.remove('hidden');
+                        
+                        // Bắt đầu countdown lại
+                        startResendCountdown();
+                    } else {
+                        forgotPasswordConfirmError.textContent = data.message || 'Gửi lại OTP thất bại.';
+                        forgotPasswordConfirmError.classList.remove('hidden');
+                        
+                        // Khôi phục button nếu thất bại
+                        resendOtpBtn.disabled = false;
+                        resendOtpBtn.textContent = originalText;
+                    }
+                } catch (error) {
+                    forgotPasswordConfirmError.textContent = error.message || 'Lỗi không xác định.';
+                    forgotPasswordConfirmError.classList.remove('hidden');
+                    
+                    // Khôi phục button nếu có lỗi
+                    resendOtpBtn.disabled = false;
+                    resendOtpBtn.textContent = originalText;
+                }
+            });
+
+            // Bước 2: Xác nhận OTP
+            forgotPasswordConfirmForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                forgotPasswordConfirmError.classList.add('hidden');
+                forgotPasswordConfirmSuccess.classList.add('hidden');
+
+                const otp = forgotPasswordConfirmForm.otp.value.trim();
+
+                // Disable button và hiển thị loading
+                const submitBtn = forgotPasswordConfirmForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Đang xác nhận...';
+
+                try {
+                    const response = await fetch(`${API_URL}/customer/forgetPass/confirm`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: forgotPasswordEmail, otpCode: otp })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        forgotPasswordConfirmSuccess.textContent = 'OTP xác nhận thành công!';
+                        forgotPasswordConfirmSuccess.classList.remove('hidden');
+                        
+                        // Chuyển sang form đặt lại mật khẩu
+                        setTimeout(() => {
+                            forgotPasswordConfirmForm.classList.add('hidden');
+                            forgotPasswordResetForm.classList.remove('hidden');
+                        }, 1500);
+                    } else {
+                        forgotPasswordConfirmError.textContent = data.message || 'OTP không hợp lệ hoặc đã hết hạn.';
+                        forgotPasswordConfirmError.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    forgotPasswordConfirmError.textContent = error.message || 'Lỗi không xác định.';
+                    forgotPasswordConfirmError.classList.remove('hidden');
+                } finally {
+                    // Khôi phục button
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
+            });
+
+            // Bước 3: Đặt lại mật khẩu
+            forgotPasswordResetForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                forgotPasswordResetError.classList.add('hidden');
+                forgotPasswordResetSuccess.classList.add('hidden');
+
+                const newPassword = forgotPasswordResetForm.newPassword.value;
+                const confirmPassword = forgotPasswordResetForm.confirmPassword.value;
+
+                // Validate
+                if (newPassword !== confirmPassword) {
+                    forgotPasswordResetError.textContent = 'Mật khẩu xác nhận không khớp.';
+                    forgotPasswordResetError.classList.remove('hidden');
+                    return;
+                }
+
+                if (newPassword.length < 6) {
+                    forgotPasswordResetError.textContent = 'Mật khẩu phải có ít nhất 6 ký tự.';
+                    forgotPasswordResetError.classList.remove('hidden');
+                    return;
+                }
+
+                // Disable button và hiển thị loading
+                const submitBtn = forgotPasswordResetForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Đang đặt lại...';
+
+                try {
+                    const response = await fetch(`${API_URL}/customer/forgetPass/reset`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: forgotPasswordEmail, newPassword })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        forgotPasswordResetSuccess.textContent = 'Đặt lại mật khẩu thành công! Chuyển đến trang đăng nhập...';
+                        forgotPasswordResetSuccess.classList.remove('hidden');
+                        
+                        // Chuyển về trang đăng nhập sau 2 giây
+                        setTimeout(() => {
+                            forgotPasswordPage.classList.add('hidden');
+                            loginPage.classList.remove('hidden');
+                            forgotPasswordResetForm.reset();
+                        }, 2000);
+                    } else {
+                        forgotPasswordResetError.textContent = data.message || 'Đặt lại mật khẩu thất bại.';
+                        forgotPasswordResetError.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    forgotPasswordResetError.textContent = error.message || 'Lỗi không xác định.';
+                    forgotPasswordResetError.classList.remove('hidden');
+                } finally {
+                    // Khôi phục button
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
+            });
+
+            // === 14. LOGIC DROPDOWN MENU VÀ ĐỔI MẬT KHẨU ===
+
+            const userDropdown = document.getElementById('user-dropdown');
+            const viewEditProfileBtn = document.getElementById('view-edit-profile-btn');
+            const changePasswordBtn = document.getElementById('change-password-btn');
+            const dropdownLogoutBtn = document.getElementById('dropdown-logout-btn');
+
+            const changePasswordModal = document.getElementById('change-password-modal');
+            const changePasswordForm = document.getElementById('change-password-form');
+            const closeChangePasswordBtn = document.getElementById('close-change-password-btn');
+            const cancelChangePasswordBtn = document.getElementById('cancel-change-password-btn');
+            const changePasswordError = document.getElementById('change-password-error');
+
+            // Toggle dropdown khi click vào user profile
+            userProfile.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('hidden');
+                lucide.createIcons();
+            });
+
+            // Đóng dropdown khi click ra ngoài
+            document.addEventListener('click', (e) => {
+                if (!userProfile.contains(e.target) && !userDropdown.contains(e.target)) {
+                    userDropdown.classList.add('hidden');
+                }
+            });
+
+            // Xem/Sửa thông tin
+            viewEditProfileBtn.addEventListener('click', () => {
+                userDropdown.classList.add('hidden');
+                
+                if (!currentUser) return;
+                
+                // Điền thông tin hiện tại
+                document.getElementById('edit-fullname').value = currentUser.fullName;
+                document.getElementById('edit-email').value = currentUser.email || '';
+                document.getElementById('edit-phone').value = currentUser.phoneNumber || '';
+                document.getElementById('edit-avatar-color').value = currentUser.avatarColor || '#6366f1';
+                
+                editProfileError.classList.add('hidden');
+                editProfileModal.classList.remove('hidden');
+                lucide.createIcons();
+            });
+
+            // Đổi mật khẩu
+            changePasswordBtn.addEventListener('click', () => {
+                userDropdown.classList.add('hidden');
+                changePasswordModal.classList.remove('hidden');
+                changePasswordForm.reset();
+                changePasswordError.classList.add('hidden');
+                lucide.createIcons();
+            });
+
+            // Đăng xuất từ dropdown
+            dropdownLogoutBtn.addEventListener('click', async () => {
+                userDropdown.classList.add('hidden');
+                
+                if (!confirm('Bạn có chắc muốn đăng xuất?')) return;
+                
+                try {
+                    // Ngắt kết nối WebSocket trước
+                    if (stompClient && stompClient.connected) {
+                        stompClient.disconnect();
+                    }
+                    if (extendOnlineInterval) {
+                        clearInterval(extendOnlineInterval);
+                    }
+                    
+                    // Gọi API logout
+                    await apiFetch('/auth/logout', { method: 'POST' });
+                    
+                    // Reset trạng thái
+                    currentUser = null;
+                    currentRoomId = null;
+                    allRooms.clear();
+                    userCache.clear();
+                    roomSubscriptions = {};
+                    messagePagination.clear();
+                    currentRoomOnlineStatus = [];
+                    
+                    // Quay về trang đăng nhập
+                    showPage('login-page');
+                    loginForm.reset();
+                } catch (error) {
+                    console.error('Lỗi khi đăng xuất:', error);
+                    alert('Có lỗi xảy ra khi đăng xuất. Vui lòng thử lại.');
+                }
+            });
+
+            // Đóng modal đổi mật khẩu
+            function closeChangePasswordModal() {
+                changePasswordModal.classList.add('hidden');
+            }
+
+            closeChangePasswordBtn.addEventListener('click', closeChangePasswordModal);
+            cancelChangePasswordBtn.addEventListener('click', closeChangePasswordModal);
+            changePasswordModal.addEventListener('click', closeChangePasswordModal);
+
+            // Xử lý submit form đổi mật khẩu
+            changePasswordForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                changePasswordError.classList.add('hidden');
+
+                const currentPassword = document.getElementById('current-password').value;
+                const newPassword = document.getElementById('new-password').value;
+                const confirmNewPassword = document.getElementById('confirm-new-password').value;
+
+                // Validate
+                if (newPassword !== confirmNewPassword) {
+                    changePasswordError.textContent = 'Mật khẩu mới không khớp.';
+                    changePasswordError.classList.remove('hidden');
+                    return;
+                }
+
+                if (newPassword.length < 6) {
+                    changePasswordError.textContent = 'Mật khẩu mới phải có ít nhất 6 ký tự.';
+                    changePasswordError.classList.remove('hidden');
+                    return;
+                }
+
+                if (currentPassword === newPassword) {
+                    changePasswordError.textContent = 'Mật khẩu mới phải khác mật khẩu hiện tại.';
+                    changePasswordError.classList.remove('hidden');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_URL}/customer/changePass`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            currentPassword,
+                            newPassword
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert('Đổi mật khẩu thành công!');
+                        closeChangePasswordModal();
+                        changePasswordForm.reset();
+                    } else {
+                        changePasswordError.textContent = data.message || data.details || 'Đổi mật khẩu thất bại.';
+                        changePasswordError.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    changePasswordError.textContent = error.message || 'Lỗi không xác định.';
+                    changePasswordError.classList.remove('hidden');
+                }
+            });
 
         }); // Hết DOMContentLoaded
     </script>

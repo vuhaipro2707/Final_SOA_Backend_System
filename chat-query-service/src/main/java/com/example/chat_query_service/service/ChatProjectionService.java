@@ -57,6 +57,7 @@ public class ChatProjectionService {
         roomView.setUnreadStatus(unreadStatus);
         roomView.setCreatedAt(event.getCreatedAt()); 
         roomView.setUpdatedAt(event.getCreatedAt());
+        roomView.setCreatedBy(event.getCreatedBy());
         roomView.setLastMessage(null); 
         
         ChatRoomView savedRoomView = chatRoomViewRepository.save(roomView);

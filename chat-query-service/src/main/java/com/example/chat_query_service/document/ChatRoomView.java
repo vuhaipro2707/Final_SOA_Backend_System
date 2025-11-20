@@ -26,6 +26,8 @@ public class ChatRoomView {
 
     private LastMessageInfo lastMessage;
 
+    private Long createdBy;
+
     private Instant createdAt;
 
     private Instant updatedAt;

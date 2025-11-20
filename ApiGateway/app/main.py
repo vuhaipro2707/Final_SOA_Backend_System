@@ -11,14 +11,10 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(title="API Gateway",
               openapi_url=None)
 
-origins = [
-    "http://127.0.0.1:5500",
-    "http://localhost:5500",
-]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origin_regex=r".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -116,13 +112,18 @@ async def custom_swagger_ui_html():
     )
 # --------------------------------------------------------
 
-
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def proxy_requests(path: str, request: Request):
     try:
         service_name, sub_path = path.split("/", 1)
     except ValueError:
         raise HTTPException(status_code=404, detail="Invalid path format. Expecting /<service_name>/<path>")
+    
+    if sub_path.startswith("internal/") or "/internal/" in sub_path:
+        raise HTTPException(
+            status_code=403, 
+            detail="Access to internal endpoints is forbidden. These endpoints are for service-to-service communication only."
+        )
     
     if service_name not in SYSTEM_SERVICES:
         raise HTTPException(status_code=404, detail=f"Service '{service_name}' not found.")
@@ -136,7 +137,8 @@ async def proxy_requests(path: str, request: Request):
     if "transfer-encoding" in headers:
         del headers["transfer-encoding"]
 
-    is_public_path = (service_name == "auth" and (sub_path.startswith("login") or sub_path.startswith("logout")))
+    is_public_path = (service_name == "auth" and (sub_path.startswith("login") or sub_path.startswith("logout"))) or \
+                     (service_name == "customer" and (sub_path.startswith("create/account") or sub_path.startswith("forgetPass/")))
 
     if not is_public_path:
         token = request.cookies.get("jwt_token") 

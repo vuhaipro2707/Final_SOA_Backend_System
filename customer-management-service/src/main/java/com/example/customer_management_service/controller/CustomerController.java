@@ -1,10 +1,16 @@
 package com.example.customer_management_service.controller;
+import com.example.customer_management_service.dto.ChangePasswordRequest;
+import com.example.customer_management_service.dto.CreateCustomerRequest;
+import com.example.customer_management_service.dto.ForgetPasswordConfirmRequest;
+import com.example.customer_management_service.dto.ForgetPasswordInitiateRequest;
 import com.example.customer_management_service.dto.GenericResponse;
+import com.example.customer_management_service.dto.PasswordResetRequest;
 import com.example.customer_management_service.dto.UpdateCustomerInfoRequest;
 import com.example.customer_management_service.service.CustomerService;
 import com.example.customer_management_service.model.Customer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -126,6 +132,104 @@ public class CustomerController {
             return ResponseEntity.ok(GenericResponse.success("Customer full name retrieved successfully.", fullName));
         } else {
             return ResponseEntity.status(404).body(GenericResponse.failure("Customer not found."));
+        }
+    }
+
+    @PostMapping("/create/account")
+    public ResponseEntity<GenericResponse<Customer>> createCustomer(@RequestBody CreateCustomerRequest request) {
+        try {
+            Optional<Customer> customerOpt = customerService.createCustomer(request);
+
+            if (customerOpt.isPresent()) {
+                Customer customer = customerOpt.get();
+                customer.setPassword(null);
+                return ResponseEntity.ok(GenericResponse.success("Account created successfully.", customer));
+            } else {
+                return ResponseEntity.status(500).body(GenericResponse.failure("Failed to create account."));
+            }
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(GenericResponse.failure(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(GenericResponse.failure("An internal error occurred: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/forgetPass/initiate")
+    public ResponseEntity<GenericResponse<Void>> forgetPassInitiate(@RequestBody ForgetPasswordInitiateRequest request) {
+        try {
+            customerService.initiatePasswordReset(request);
+            return ResponseEntity.ok(GenericResponse.success("OTP sent to email."));
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(GenericResponse.failure(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(GenericResponse.failure("An internal error occurred: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/forgetPass/resend")
+    public ResponseEntity<GenericResponse<Void>> forgetPassResend(@RequestBody ForgetPasswordInitiateRequest request) {
+        try {
+            customerService.resendPasswordResetOtp(request);
+            return ResponseEntity.ok(GenericResponse.success("OTP resent to email."));
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(GenericResponse.failure(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(GenericResponse.failure("An internal error occurred: " + e.getMessage()));
+        }
+    }
+    
+
+    @PostMapping("/forgetPass/confirm")
+    public ResponseEntity<GenericResponse<Void>> forgetPassConfirm(@RequestBody ForgetPasswordConfirmRequest request) {
+        try {
+            boolean isConfirmed = customerService.confirmPasswordReset(request);
+
+            if (isConfirmed) {
+                return ResponseEntity.ok(GenericResponse.success("OTP confirmed. You can now reset your password."));
+            } else {
+                return ResponseEntity.ok(GenericResponse.failure("Invalid or expired OTP or session."));
+            }
+
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(GenericResponse.failure(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(GenericResponse.failure("An internal error occurred: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/forgetPass/reset")
+    public ResponseEntity<GenericResponse<Void>> forgetPassReset(@RequestBody PasswordResetRequest request) {
+        try {
+            customerService.resetPassword(request);
+            return ResponseEntity.ok(GenericResponse.success("Password reset successfully."));
+
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(GenericResponse.failure(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(GenericResponse.failure("An internal error occurred: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/changePass")
+    public ResponseEntity<GenericResponse<Void>> changePassword(@RequestBody ChangePasswordRequest request, Authentication authentication) {
+        System.out.println("Changing password for customer ID: " + request.getCurrentPassword() + " -> " + request.getNewPassword());
+        if (request.getCurrentPassword() == null || request.getNewPassword() == null) {
+            return ResponseEntity.badRequest().body(GenericResponse.failure("currentPassword and newPassword are required."));
+        }
+        try {
+            Long customerId = Long.parseLong(authentication.getPrincipal().toString());
+            customerService.changePassword(customerId, request);
+            return ResponseEntity.ok(GenericResponse.success("Password changed successfully."));
+        
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(401).body(GenericResponse.failure(e.getMessage()));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(GenericResponse.failure(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(GenericResponse.failure("An internal error occurred: " + e.getMessage()));
         }
     }
 }

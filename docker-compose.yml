@@ -20,6 +20,11 @@ services:
       - "8081"
     networks:
       - chat_network
+    depends_on:
+      - auth-service
+      - customer-management-service
+      - chat-command-service
+      - chat-query-service
     volumes:
       - ./ApiGateway/app:/app
       # Tùy chọn: Volume cho các dependency (để tránh ghi đè các thư viện đã cài)
@@ -67,7 +72,10 @@ services:
     networks:
       - chat_network
     depends_on:
+      - otp-service
+      - mail-service
       - postgres
+      - redis
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/chat_db
       SPRING_DATASOURCE_USERNAME: user
@@ -83,6 +91,7 @@ services:
     networks:
       - chat_network
     depends_on:
+      - customer-management-service
       - postgres
       - kafka
     environment:
@@ -113,6 +122,33 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SERVER_PORT: 8086
 
+  otp-service:
+    build: 
+      context: ./otp-service
+    container_name: otp_service
+    expose: 
+      - "8087"
+    networks:
+      - chat_network
+    depends_on:
+      - redis
+    environment:
+      SPRING_DATA_REDIS_HOST: redis 
+      SPRING_DATA_REDIS_PORT: 6379
+      SERVER_PORT: 8087
+
+  mail-service:
+    build:
+      context: ./mail-service 
+    container_name: mail_service
+    expose:
+      - "8088"
+    networks:
+      - chat_network
+    environment:
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+
   postgres:
     image: postgres:15-alpine
     container_name: student_db
@@ -138,7 +174,7 @@ services:
     image: adminer
     container_name: adminer_postgres_ui
     ports:
-      - "8088:8080" # Truy cập: http://localhost:8088
+      - "8089:8080" # Truy cập: http://localhost:8089
     networks:
       - chat_network
     depends_on:
@@ -151,7 +187,7 @@ services:
     image: mongo-express
     container_name: mongo_express_ui
     ports:
-      - "8087:8081" # Truy cập: http://localhost:8087
+      - "8090:8081" # Truy cập: http://localhost:8090
     environment:
       ME_CONFIG_MONGODB_SERVER: mongodb 
       # Vô hiệu hóa Basic Authentication của giao diện Mongo Express (truy cập trực tiếp)

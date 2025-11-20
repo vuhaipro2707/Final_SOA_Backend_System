@@ -1,133 +1,376 @@
-# **Chat Application Backend (CQRS/SOA/Event-Driven Architecture)**
+# **Chat Application API Gateway (SOA/CQRS)**
 
-This repository contains the backend implementation for a real-time chat application leveraging **Command Query Responsibility Segregation (CQRS)**, built on a Service-Oriented Architecture (SOA), and utilizing event-driven principles with Kafka.
+This repository contains a comprehensive backend implementation for a real-time chat application leveraging **Service-Oriented Architecture (SOA)** with **Command Query Responsibility Segregation (CQRS)** pattern and event-driven communication via Apache Kafka.
 
-The application uses multiple specialized microservices to handle authentication, user management, command processing (writes), query processing (reads), and real-time WebSocket communication.
+The system provides:
+- **Authentication & Authorization** with JWT (HttpOnly cookies)
+- **Customer Management** (profile, password reset with OTP)
+- **Chat Command Operations** (write operations: create rooms, send messages, update read markers)
+- **Chat Query Operations** (read operations: fetch rooms, messages, online status, read markers)
+- **Real-time Communication** via WebSockets (STOMP protocol)
 
 ## **🚀 Architecture Overview**
 
-The system is structured around an API Gateway, several Spring Boot microservices (Java 21), PostgreSQL, MongoDB, Redis, and Apache Kafka.
+The system follows a microservices architecture with clear separation of concerns:
 
-| Component | Technology / Language | Role |
+| Component | Technology | Role |
 | :---- | :---- | :---- |
-| **API Gateway** | Python (FastAPI) | Single entry point, JWT validation, and intelligent routing to backend services. |
-| **Auth Service** | Spring Boot (Java) \+ PostgreSQL | Handles customer sign-in/out, manages Customer entities, and issues RSA-signed JWTs. |
-| **Customer Management Service** | Spring Boot (Java) \+ PostgreSQL | Manages customer profile information (read/write operations on the Customer entity). |
-| **Chat Command Service** | Spring Boot (Java) \+ PostgreSQL \+ Kafka Producer | Handles all **write** operations (sending messages, creating rooms, updating read markers). Publishes events (e.g., MessageSentEvent) to Kafka. |
-| **Chat Query Service** | Spring Boot (Java) \+ MongoDB \+ Redis \+ Kafka Consumer | Handles all **read** operations (fetching rooms, messages, read markers). Consumes events from Kafka to maintain read-optimized projections in MongoDB (CQRS pattern). Uses Redis for real-time online status checks. |
-| **WebSocket Service** | Spring Boot (Java) \+ WebSockets/STOMP \+ Redis \+ Kafka Consumer | Manages real-time connections, handles typing indicators, and pushes real-time updates (messages, online status, read markers) to connected users by consuming Kafka events. |
-| **Nginx** | Reverse Proxy | Routes external HTTP traffic to the API Gateway and WebSocket traffic to the WebSocket Service. |
-| **Datastores** | PostgreSQL, MongoDB, Redis, Kafka | Persistent data, read models, caching, and inter-service communication. |
+| **API Gateway** | Python (FastAPI) | Single entry point for all HTTP requests. Validates JWT tokens, extracts customer ID, and routes requests to appropriate backend services. |
+| **Nginx** | Reverse Proxy | External load balancer routing traffic to API Gateway and WebSocket Service. |
+| **Auth Service** | Spring Boot (Java 21) + PostgreSQL | Handles login/logout operations. Issues RSA-signed JWT tokens stored in HttpOnly cookies. |
+| **Customer Management Service** | Spring Boot (Java 21) + PostgreSQL | Manages customer profiles, account creation, password changes, and password reset with OTP verification. |
+| **OTP Service** | Spring Boot (Java 21) + In-Memory Storage (Redis) | Generates, validates, and manages time-limited OTP codes for password reset flows. |
+| **Mail Service** | Spring Boot (Java 21) + SMTP | Sends transactional emails (OTP codes, notifications). |
+| **Chat Command Service** | Spring Boot (Java 21) + PostgreSQL + Kafka Producer | Handles all **write operations** (create rooms, send messages, update read markers). Publishes domain events to Kafka. |
+| **Chat Query Service** | Spring Boot (Java 21) + MongoDB + Redis + Kafka Consumer | Handles all **read operations** (fetch rooms, messages, online status). Maintains read-optimized projections by consuming Kafka events. |
+| **WebSocket Service** | Spring Boot (Java 21) + STOMP/WebSocket + Redis + Kafka Consumer | Manages real-time bidirectional connections. Pushes live updates (messages, typing indicators, online status) to connected clients. |
+| **PostgreSQL** | Relational Database | Source of truth for write models (customers, chat rooms, messages). |
+| **MongoDB** | Document Database | Read-optimized projections for chat views and message history. |
+| **Redis** | In-Memory Cache | Provide high-speed storage for transient data: 1. OTP & Reset Flow: Store time-limited OTP codes (TTL 300s) and password reset confirmation status (TTL 600s). 2. Real-time Presence: Track user Online Status (TTL 120s) and manage Typing Indicators (TTL 2s). 3. TTL Events: Utilize Keyspace Notifications to trigger automatic Offline and Stop Typing logic. |
+| **Apache Kafka** | Event Streaming Platform | Asynchronous communication between services via domain events. |
+
 
 ## **🛠️ Local Development Setup**
 
-The entire environment is containerized using Docker Compose.
+The entire stack is containerized and orchestrated with Docker Compose.
 
 ### **Prerequisites**
 
-1. Docker and Docker Compose installed.  
-2. Python 3.x (required only for generating asymmetric keys).
+- **Docker** and **Docker Compose** installed
+- **Python 3.x** (for generating RSA key pairs)
 
-### **1\. Generate Asymmetric Keys**
+### **Step 1: Configure Environment Variables**
 
-The system uses RSA asymmetric keys for JWT signing and verification. The private key is for the **Auth Service** (signing), and the public key is shared with the **API Gateway** and **WebSocket Service** (verification).
+Create a file named `.env` in the project root directory using the `.env example` content and replace the placeholders with your actual Gmail details. You must use a Gmail **App Password** for `MAIL_PASSWORD`.
 
-Run the provided Python script to generate the necessary PEM files:
+```bash:.env example:.env
+MAIL_USERNAME=your_sender_email@gmail.com
+MAIL_PASSWORD=your_app_specific_password # Use App Password for Gmail
+```
 
+### **Step 2: Generate RSA Key Pairs**
+
+The system uses asymmetric RSA keys for JWT signing and verification:
+- **Private Key**: Used by Auth Service to sign JWTs
+- **Public Key**: Used by API Gateway and WebSocket Service to verify JWTs
+
+Generate the keys using the provided script:
+
+```bash
 python key.py
+```
 
-This command will create:
+This creates:
+- `auth-service/src/main/resources/keys/private_key.pem`
+- `ApiGateway/app/public_key.pem`
+- `websocket-service/src/main/resources/keys/public_key.pem`
 
-* auth-service/src/main/resources/keys/private\_key.pem  
-* ApiGateway/app/public\_key.pem  
-* websocket-service/src/main/resources/keys/public\_key.pem
+⚠️ **Important**: Run this before starting the services, as authentication will fail without proper keys.
 
-***Note: The key.py script is essential for the services to authenticate correctly.***
+### **Step 3: Start All Services**
 
-### **2\. Build and Start Services**
+Build and launch all containers in detached mode:
 
-The docker-compose.yml file defines the full production-like environment (including Kafka, databases, and UI tools).
+```bash
+docker-compose up --build -d
+```
 
-\# Build the Docker images and start all containers in detached mode  
-docker-compose up \--build \-d
+**Startup time**: Allow 1-2 minutes for Kafka, databases, and Spring Boot applications to fully initialize.
 
-Allow about 1-2 minutes for all services (especially Kafka and the Spring Boot apps) to fully initialize.
+### **Step 4: Access Points**
 
-### **3\. Accessing the Application**
-
-| Component | URL | Purpose |
+| Service | URL | Description |
 | :---- | :---- | :---- |
-| **Frontend** | http://localhost:5500 (Assumes you are running index.html via a live server on this port) | The main chat application UI. |
-| **Nginx Gateway** | http://localhost:8080 | All external API calls (REST & WS handshake) go here. |
-| **Mongo Express UI** | http://localhost:8087 | MongoDB visual interface. |
-| **Adminer UI** | http://localhost:8088 | PostgreSQL visual interface. |
+| **API Gateway** | http://localhost:8080 | Main REST API endpoint (all HTTP requests) |
+| **WebSocket Endpoint** | ws://localhost:8080/ws/chat | STOMP WebSocket connection for real-time updates |
+| **Frontend** | http://localhost:5500 | Chat application UI (if running `index.html` via live server) |
+| **Mongo Express** | http://localhost:8087 | MongoDB GUI (view chat projections) |
+| **Adminer** | http://localhost:8088 | PostgreSQL GUI (view source data) |
 
-## **🔑 Authentication and Test Users**
+### **Step 5: Test Accounts**
 
-### **Test Credentials (Created by Auth Service/DataInitializer)**
+Pre-seeded accounts (created by Auth Service DataInitializer):
 
-| Username | Password | Customer ID |
-| :---- | :---- | :---- |
-| user1 | 123 | 1 |
-| user2 | 1234 | 2 |
-| user3 | 12345 | 3 |
-
-### **Login Flow**
-
-1. Client submits credentials to POST /auth/login via Nginx/API Gateway.  
-2. **Auth Service** authenticates, generates a JWT, and sets it as an HttpOnly cookie (jwt\_token).  
-3. For subsequent requests, the **API Gateway** extracts the jwt\_token cookie, validates it using the public key, extracts the customerId, and forwards it to the upstream service via the X-Customer-Id header.  
-4. The backend services (Customer, Command, Query) use the custom GatewayAuthFilter to reconstruct the Authentication context from this header.
-
-## **🗺️ API Endpoints and WebSocket Topics**
-
-The system exposes both REST API endpoints (via the Nginx/API Gateway on port 8080\) and STOMP-over-WebSocket topics (via Nginx/WebSocket Service on /ws/chat).
-
-### **1\. REST API Endpoints (HTTP Requests via http://localhost:8080/)**
-
-| Service | Method | Path | Description |
+| Username | Password | Customer ID | Purpose |
 | :---- | :---- | :---- | :---- |
-| **Auth** | POST | /auth/login | Authenticate and set JWT cookie. (Public) |
-| **Auth** | POST | /auth/logout | Clear JWT cookie. (Public) |
-| **Customer** | GET | /customer/info | Get authenticated user's profile. |
-| **Customer** | POST | /customer/info | Update authenticated user's profile (fullName, email, phoneNumber, avatarColor). |
-| **Customer (Read)** | GET | /customer/fullName/customerId/{id} | Get a customer's full name (used internally by chat services). |
-| **Customer (Search)** | GET | /customer/info/phoneNumber/{number} | Search customers by phone number (for creating rooms). |
-| **Query** | GET | /query/rooms | Get list of rooms for the authenticated user. |
-| **Command** | POST | /command/room | Create a new chat room. |
-| **Query** | GET | /query/message/roomId/{id} | Get the latest 20 messages for a room. |
-| **Query (Pagination)** | GET | /query/message/roomId/{id}/index/{indexId} | Get the next batch of older messages. |
-| **Command** | POST | /command/message | Send a new message. |
-| **Query** | GET | /query/onlineStatus/roomId/{id} | Get online status of all participants in a room. |
-| **Query** | GET | /query/readMarkers/roomId/{id} | Get all read markers for a room. |
-| **Command** | POST | /command/read | Update the user's last read message ID (marks as read). |
+| `user1` | `123` | 1 | Test user 1 |
+| `user2` | `1234` | 2 | Test user 2 |
+| `user3` | `12345` | 3 | Test user 3 |
 
-### **2\. STOMP WebSocket Topics and Destinations**
 
-The WebSocket connection is established at ws://localhost:8080/ws/chat.
+## **🔐 Authentication & Security**
 
-| Type | Destination/Topic | Purpose |
+### **JWT Cookie-Based Authentication**
+
+The system uses **JWT tokens stored in HttpOnly cookies** for secure, stateless authentication:
+
+1. **Login Process**:
+   - Client sends credentials to `POST /auth/login`
+   - Auth Service validates credentials against PostgreSQL
+   - On success, generates RSA-signed JWT containing `customerId`
+   - Sets JWT in `jwt_token` HttpOnly cookie (prevents XSS attacks)
+
+2. **Request Authentication**:
+   - API Gateway extracts `jwt_token` cookie from incoming requests
+   - Validates JWT signature using public key
+   - Extracts `customerId` and forwards to backend via `X-Customer-Id` header
+   - Backend services use custom `GatewayAuthFilter` to reconstruct authentication context
+
+3. **Logout Process**:
+   - Client calls `POST /auth/logout`
+   - API Gateway clears the `jwt_token` cookie
+
+### **Endpoint Security Levels**
+
+| Security Level | Endpoints | Description |
 | :---- | :---- | :---- |
-| **Subscription (Private)** | /user/topic/rooms | Receive **updated room views** (including last message and unread status) relevant to the user. |
-| **Subscription (Private)** | /user/topic/readStatus | Receive granular updates on the room's global unread status for the current user. |
-| **Subscription (Public)** | /topic/message/roomId/{id} | Receive new **messages** in real-time for the specific room. |
-| **Subscription (Public)** | /topic/onlineStatus/roomId/{id} | Receive real-time **online/offline status** changes for all participants in the room. |
-| **Subscription (Public)** | /topic/readMarkers/roomId/{id} | Receive real-time **read marker** updates (who read up to which message) for the specific room. |
-| **Subscription (Public)** | /topic/typing/roomId/{id} | Receive real-time **typing/stop-typing indicators** for the specific room. |
-| **Message Mapping (Send)** | /app/extendOnline | Command to **extend the user's online presence** (TTL in Redis). |
-| **Message Mapping (Send)** | /app/typing | Command to send a **typing or stop-typing indicator** to the room. |
+| **Public** | `/auth/login`, `/auth/logout`, `/customer/create/account`, `/customer/forgetPass/**` | No authentication required |
+| **Authenticated** | All `/customer/**`, `/command/**`, `/query/**` endpoints | Requires valid JWT cookie |
+| **Internal** | All `/internal/**` endpoints | Service-to-service communication only (protected by internal filters) |
 
-## **🔄 CQRS and Event Flow**
+---
 
-The chat core adheres to a Command Query Responsibility Segregation (CQRS) and Event Sourcing pattern:
+## **📡 API Documentation**
 
-1. **Command (Write):** A user sends a message (POST /command/message).  
-   * **Chat Command Service** writes the message to PostgreSQL (Source of Truth).  
-   * It publishes a MessageSentEvent to the chat-message-sent Kafka topic.  
-2. **Projection (Read Model Update):**  
-   * **Chat Query Service** consumes the MessageSentEvent.  
-   * It projects the new message into the MongoDB messages collection and updates the corresponding chatRoomViews document (updating lastMessage and updatedAt).  
-3. **Real-Time Update:**  
-   * The updated ChatRoomView is published by the **Chat Query Service** as a RoomUpdatedEvent to Kafka.  
-   * **WebSocket Service** consumes this RoomUpdatedEvent and pushes the updated room data to all relevant users' private /user/topic/rooms WebSocket destinations.  
-   * The original MessageSentEvent is also pushed by the **WebSocket Service** directly to the room's public topic (/topic/message/roomId/{id}).
+Base URL: `http://localhost:8080`
+
+> 📖 For detailed request/response schemas, see `ApiGateway/app/openapi.yaml`
+
+### **1. Authentication Endpoints**
+
+| Method | Endpoint | Auth | Description |
+| :---- | :---- | :---- | :---- |
+| POST | `/auth/login` | 🔓 Public | Login and receive JWT cookie |
+| POST | `/auth/logout` | 🔓 Public | Clear JWT cookie and logout |
+
+---
+
+### **2. Customer Management Endpoints**
+
+#### **Account Management**
+
+| Method | Endpoint | Auth | Description |
+| :---- | :---- | :---- | :---- |
+| POST | `/customer/create/account` | 🔓 Public | Create a new customer account |
+| GET | `/customer/info` | 🔒 Authenticated | Get current user's profile information |
+| POST | `/customer/info` | 🔒 Authenticated | Update current user's profile |
+| POST | `/customer/changePass` | 🔒 Authenticated | Change password for authenticated user |
+
+#### **Password Reset Flow**
+
+| Method | Endpoint | Auth | Description |
+| :---- | :---- | :---- | :---- |
+| POST | `/customer/forgetPass/initiate` | 🔓 Public | Start password reset by sending OTP to email |
+| POST | `/customer/forgetPass/resend` | 🔓 Public | Resend OTP code to email |
+| POST | `/customer/forgetPass/confirm` | 🔓 Public | Verify OTP code |
+| POST | `/customer/forgetPass/reset` | 🔓 Public | Reset password after OTP confirmation |
+
+#### **Customer Search**
+
+| Method | Endpoint | Auth | Description |
+| :---- | :---- | :---- | :---- |
+| GET | `/customer/info/customerId/{customerId}` | 🔒 Authenticated | Get customer details by ID |
+| GET | `/customer/info/phoneNumber/{phoneNumber}` | 🔒 Authenticated | Search customers by phone number (contains) |
+| GET | `/customer/info/fullName/{fullName}` | 🔒 Authenticated | Search customers by full name (contains) |
+| GET | `/customer/fullName/customerId/{customerId}` | 🔒 Authenticated | Get customer's full name by ID |
+
+---
+
+### **3. Chat Command Endpoints (Write Operations)**
+
+| Method | Endpoint | Auth | Description |
+| :---- | :---- | :---- | :---- |
+| POST | `/command/room` | 🔒 Authenticated | Create a new chat room |
+| POST | `/command/message` | 🔒 Authenticated | Send a message to a room |
+| POST | `/command/read` | 🔒 Authenticated | Update read marker (mark messages as read) |
+
+---
+
+### **4. Chat Query Endpoints (Read Operations)**
+
+| Method | Endpoint | Auth | Description |
+| :---- | :---- | :---- | :---- |
+| GET | `/query/rooms` | 🔒 Authenticated | Get all chat rooms for current user |
+| GET | `/query/message/roomId/{roomId}` | 🔒 Authenticated | Get the latest 20 messages in a room |
+| GET | `/query/message/roomId/{roomId}/index/{indexMessageId}` | 🔒 Authenticated | Get next batch of older messages (pagination) |
+| GET | `/query/onlineStatus/roomId/{roomId}` | 🔒 Authenticated | Get online status of all room participants |
+| GET | `/query/readMarkers/roomId/{roomId}` | 🔒 Authenticated | Get all read markers for a room |
+
+---
+
+### **5. WebSocket Communication**
+
+#### **Connection Setup**
+
+- **Endpoint**: `ws://localhost:8080/ws/chat`
+- **Protocol**: STOMP over WebSocket
+- **Authentication**: Include `jwt_token` cookie in handshake
+
+#### **Client Subscriptions (Receive)**
+
+| Destination | Type | Description |
+| :---- | :---- | :---- |
+| `/user/topic/rooms` | Private | Receive updated room views (unread status, last message) |
+| `/user/topic/readStatus` | Private | Receive room-specific unread status changes |
+| `/topic/message/roomId/{roomId}` | Public | Receive new messages in real-time |
+| `/topic/onlineStatus/roomId/{roomId}` | Public | Receive online/offline status updates |
+| `/topic/readMarkers/roomId/{roomId}` | Public | Receive read marker updates |
+| `/topic/typing/roomId/{roomId}` | Public | Receive typing indicators |
+
+#### **Client Sends (Publish)**
+
+| Destination | Description |
+| :---- | :---- |
+| `/app/extendOnline` | Extend user's online presence (refresh TTL in Redis) |
+| `/app/typing` | Send typing/stop-typing indicator to room |
+
+---
+
+### **6. Internal Endpoints (Service-to-Service Only)**
+
+⚠️ **DO NOT call these from client applications**
+
+| Method | Endpoint | Service | Description |
+| :---- | :---- | :---- | :---- |
+| POST | `/internal/generate/email` | OTP Service | Generate OTP code for email |
+| POST | `/internal/resend/email` | OTP Service | Resend OTP code |
+| POST | `/internal/validate/email` | OTP Service | Validate OTP code |
+| POST | `/internal/send` | Mail Service | Send email |
+| GET | `/internal/rooms/customerId/{id}` | Query Service | Get rooms for specific customer |
+| GET | `/internal/valid/roomId/{roomId}/customerId/{id}` | Query Service | Check if customer is room participant |
+
+---
+
+## **🔄 CQRS Architecture & Event Flow**
+
+The chat system implements **CQRS** (Command Query Responsibility Segregation) for optimal read/write performance:
+
+### **Write Side (Command)**
+
+1. Client sends command (e.g., `POST /command/message`)
+2. **Chat Command Service**:
+   - Validates request and authorization
+   - Writes to **PostgreSQL** (source of truth)
+   - Publishes domain event to **Kafka** (e.g., `MessageSentEvent`)
+   - Returns success response immediately
+
+### **Read Side (Query)**
+
+1. **Chat Query Service** (Kafka Consumer):
+   - Listens to Kafka topics for events
+   - Projects events into **MongoDB** (denormalized read models)
+   - Updates chat room views, message collections, etc.
+
+2. Client queries data via `GET /query/*` endpoints
+   - Reads directly from MongoDB (fast, optimized for queries)
+
+### **Real-time Updates**
+
+1. **WebSocket Service** (Kafka Consumer):
+   - Consumes events from Kafka
+   - Pushes updates to connected clients via STOMP topics
+   - Updates Redis for online status tracking
+
+### **Event Flow Example: Send Message**
+
+```
+┌─────────┐     POST /command/message      ┌──────────────────┐
+│ Client  │ ───────────────────────────>   │ Command Service  │
+└─────────┘                                └──────────────────┘
+                                                    │
+                                                    │ 1. Write to PostgreSQL
+                                                    ▼
+                                           ┌──────────────────┐
+                                           │   PostgreSQL     │
+                                           │  (Source of      │
+                                           │   Truth)         │
+                                           └──────────────────┘
+                                                    │
+                                                    │ 2. Publish Event
+                                                    ▼
+                                           ┌──────────────────┐
+                                           │  Kafka Topic:    │
+                                           │ MessageSentEvent │
+                                           └──────────────────┘
+                                                    │
+                                          ┌─────────────────────┐
+                                          │                     │ 
+                                          ▼                     ▼ 
+                               ┌──────────────────┐  ┌──────────────────┐ 
+                               │  Query Service   │  │ WebSocket Service│ 
+                               │                  │  │                  │ 
+                               │ 3. Update MongoDB│  │ 4. Push to WS    │ 
+                               │    (Read Model)  │  │    Clients       │ 
+                               └──────────────────┘  └──────────────────┘ 
+                                          │                     │
+                                          │                     │
+                                          ▼                     ▼
+                               ┌──────────────────┐  ┌──────────────────┐
+                               │    MongoDB       │  │  Connected       │
+                               │  (Optimized for  │  │  WebSocket       │
+                               │   Queries)       │  │  Clients         │
+                               └──────────────────┘  └──────────────────┘
+```
+
+### **Benefits of CQRS**
+
+✅ **Scalability**: Read and write sides can scale independently  
+✅ **Performance**: Read models optimized for specific query patterns  
+✅ **Flexibility**: Different data stores for different needs (PostgreSQL for consistency, MongoDB for performance)  
+✅ **Resilience**: Asynchronous processing via Kafka ensures loose coupling  
+✅ **Audit Trail**: All changes captured as events in Kafka
+
+---
+
+## **🐛 Troubleshooting**
+
+### **JWT Authentication Issues**
+
+**Problem**: `401 Unauthorized` on protected endpoints
+
+**Solutions**:
+- Ensure you've run `python key.py` to generate RSA keys
+- Verify JWT cookie is being set after login
+- Check cookie is included in subsequent requests
+- Verify API Gateway can read `public_key.pem`
+
+### **Kafka Connection Issues**
+
+**Problem**: Events not being processed, read models not updating
+
+**Solutions**:
+- Wait 1-2 minutes after `docker-compose up` for Kafka to initialize
+- Check Kafka broker logs: `docker logs final_soa-kafka-1`
+- Verify Kafka topics exist: `docker exec -it final_soa-kafka-1 kafka-topics --list --bootstrap-server localhost:9092`
+
+### **Database Connection Issues**
+
+**Problem**: Services failing to connect to PostgreSQL/MongoDB
+
+**Solutions**:
+- Ensure databases are fully started: `docker ps`
+- Check database logs for errors
+- Verify connection strings in `application.properties` files
+
+---
+
+## **📚 Additional Resources**
+
+- **OpenAPI Specification**: See `ApiGateway/app/openapi.yaml` for complete API documentation
+- **Database Access**:
+  - PostgreSQL: http://localhost:8089 (Adminer)
+  - MongoDB: http://localhost:8090 (Mongo Express)
+- **Service Ports** (internal):
+  - WebSocket: 8082
+  - Auth Service: 8083
+  - Customer Service: 8084
+  - Chat Command: 8085
+  - Chat Query: 8086
+  - OTP Service: 8087
+  - Mail Service: 8088
+
+---
+
+## **📝 License**
+
+This project is developed for educational purposes as part of a Service-Oriented Architecture course.

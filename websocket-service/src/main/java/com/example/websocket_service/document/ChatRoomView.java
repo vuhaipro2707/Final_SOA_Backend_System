@@ -17,6 +17,7 @@ public class ChatRoomView {
     private List<Long> participantIds;
     private Map<Long, Boolean> unreadStatus;
     private LastMessageInfo lastMessage;
+    private Long createdBy;
     private Instant createdAt;
     private Instant updatedAt;
 

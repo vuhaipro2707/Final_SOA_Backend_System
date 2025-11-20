@@ -1,0 +1,1221 @@
+openapi: 3.0.0
+info:
+  title: Chat Application API Gateway (SOA/CQRS)
+  version: 1.0.0
+  description: |
+    API Gateway serving Chat Command, Chat Query, and Customer Management services.
+    
+    **NOTE:**
+    1. Public Endpoints: `/auth/login`, `/auth/logout`, `/customer/create/account`, and `/customer/forgetPass/**`.
+    2. Authenticated Endpoints: All other `/customer`, `/command`, and `/query` endpoints require the `jwt_token` cookie.
+    3. **Internal Endpoints (Service-to-Service)**: Endpoints starting with `/internal/**` are for internal communication between services only and should not be called directly from client/frontend.
+    
+servers:
+  - url: http://localhost:8080
+    description: Nginx Gateway (Local Development)
+
+security:
+  - cookieAuth: []
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: jwt_token
+      description: JWT Token set after successful login.
+  schemas:
+    GenericResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: True if request is successful, False if there is a logical or business error.
+        message:
+          type: string
+          description: Detailed notification about the result.
+        data:
+          type: object
+          nullable: true
+          description: Returned data (depends on the endpoint).
+      required:
+        - success
+        - message
+    
+    # --- Auth & Customer Schemas ---
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          example: user1
+        password:
+          type: string
+          example: '123'
+      required:
+        - username
+        - password
+    LoginResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Login successful
+        details:
+          type: string
+          example: JWT token set in HttpOnly Cookie.
+      required:
+        - message
+        - details
+    
+    Customer:
+      type: object
+      properties:
+        customerId:
+          type: integer
+          format: int64
+          description: Unique ID of the customer.
+          example: 1
+        username:
+          type: string
+          example: user1
+        fullName:
+          type: string
+          example: Vũ Thanh Hải
+        email:
+          type: string
+          example: vuhaipro2707@gmail.com
+        phoneNumber:
+          type: string
+          example: '0901234567'
+        avatarColor:
+          type: string
+          example: '#4CAF50'
+    
+    UpdateCustomerInfoRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+          example: Vũ Thanh Hải (Mới)
+        email:
+          type: string
+          example: vuhaipro2707_new@gmail.com
+        phoneNumber:
+          type: string
+          example: '0901234569'
+        avatarColor:
+          type: string
+          example: '#FF5733'
+      required:
+        - fullName
+        - email
+        - avatarColor
+    
+    CreateCustomerRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          example: newuser
+        password:
+          type: string
+          example: newpass123
+        fullName:
+          type: string
+          example: User Mới
+        email:
+          type: string
+          example: newuser@example.com
+        phoneNumber:
+          type: string
+          example: '0912345678'
+        avatarColor:
+          type: string
+          example: '#33AACC'
+      required:
+        - username
+        - password
+        - fullName
+        - email
+    
+    ForgetPasswordInitiateRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: user1@example.com
+      required:
+        - email
+    
+    ForgetPasswordConfirmRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: user1@example.com
+        otpCode:
+          type: string
+          example: '123456'
+      required:
+        - email
+        - otpCode
+    
+    PasswordResetRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: user1@example.com
+        newPassword:
+          type: string
+          example: NewPassword123
+      required:
+        - email
+        - newPassword
+    
+    ChangePasswordRequest:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+          example: oldpassword
+        newPassword:
+          type: string
+          example: newpassword
+      required:
+        - currentPassword
+        - newPassword
+        
+    # --- OTP & Mail Service Schemas (Internal) ---
+    OtpEmailRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: user@example.com
+      required:
+        - email
+        
+    OtpEmailValidateRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: user@example.com
+        otpCode:
+          type: string
+          example: '123456'
+      required:
+        - email
+        - otpCode
+        
+    OtpGenerateResponseData:
+      type: object
+      properties:
+        otpCode:
+          type: string
+          example: '123456'
+        statusMessage:
+          type: string
+          example: New OTP generated successfully.
+          
+    SendMailRequest:
+      type: object
+      properties:
+        to:
+          type: string
+          example: recipient@example.com
+        subject:
+          type: string
+          example: Mã OTP của bạn
+        body:
+          type: string
+          example: Mã OTP là 123456. Mã này có hiệu lực trong 5 phút.
+      required:
+        - to
+        - subject
+        - body
+
+    # --- Chat Command Schemas ---
+    CreateRoomRequest:
+      type: object
+      properties:
+        roomName:
+          type: string
+          example: Nhóm Chat 1-2
+        targetCustomerIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: List of invited user IDs (excluding the creator).
+          example: [2, 3]
+      required:
+        - roomName
+        - targetCustomerIds
+    
+    SendMessageRequest:
+      type: object
+      properties:
+        roomId:
+          type: integer
+          format: int64
+          example: 1
+        content:
+          type: string
+          example: Xin chào, đây là tin nhắn mới.
+      required:
+        - roomId
+        - content
+    
+    UpdateReadMarkerRequest:
+      type: object
+      properties:
+        roomId:
+          type: integer
+          format: int64
+          example: 1
+        messageId:
+          type: integer
+          format: int64
+          description: ID of the last read message.
+          example: 1234
+      required:
+        - roomId
+        - messageId
+        
+    # --- Chat Query Schemas ---
+    LastMessageInfo:
+      type: object
+      properties:
+        messageId:
+          type: integer
+          format: int64
+        senderId:
+          type: integer
+          format: int64
+        content:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+          description: ISO 8601 string.
+    
+    ChatRoomView:
+      type: object
+      properties:
+        roomId:
+          type: integer
+          format: int64
+        roomName:
+          type: string
+        participantIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        unreadStatus:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Map<CustomerId, isUnread>.
+        lastMessage:
+          $ref: '#/components/schemas/LastMessageInfo'
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    
+    MessageDocument:
+      type: object
+      properties:
+        messageId:
+          type: integer
+          format: int64
+        roomId:
+          type: integer
+          format: int64
+        senderId:
+          type: integer
+          format: int64
+        senderFullName:
+          type: string
+        content:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+    
+    UserOnlineStatus:
+      type: object
+      properties:
+        customerId:
+          type: integer
+          format: int64
+        online:
+          type: boolean
+      example:
+        customerId: 2
+        online: true
+        
+    ReadMarker:
+      type: object
+      properties:
+        id:
+          type: string
+        roomId:
+          type: integer
+          format: int64
+        customerId:
+          type: integer
+          format: int64
+        lastReadMessageId:
+          type: integer
+          format: int64
+
+paths:
+  # =================================================================
+  # AUTH ENDPOINTS (Public)
+  # =================================================================
+  /auth/login:
+    post:
+      tags:
+        - Auth Service
+      summary: Login and set JWT Cookie
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful. JWT set in Cookie `jwt_token`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                message: Login successful
+                details: JWT token set in HttpOnly Cookie.
+        '401':
+          description: Invalid username or password.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                message: Login failed
+                details: Tên đăng nhập hoặc mật khẩu không đúng.
+  /auth/logout:
+    post:
+      tags:
+        - Auth Service
+      summary: Logout and clear JWT Cookie
+      operationId: logoutUser
+      responses:
+        '200':
+          description: Logout successful. Cookie `jwt_token` cleared.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                message: Logout successful.
+                details: Cookie cleared.
+
+  # =================================================================
+  # CUSTOMER ENDPOINTS (Authentication & Management)
+  # =================================================================
+  /customer/create/account:
+    post:
+      tags:
+        - Customer Management Service (Public)
+      summary: Create a new customer account
+      operationId: createCustomerAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '200':
+          description: Account created successfully.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Customer'
+        '400':
+          description: Invalid input data (e.g., username/email already exists).
+  /customer/forgetPass/initiate:
+    post:
+      tags:
+        - Customer Management Service (Public)
+      summary: Initiate password reset by sending OTP to email
+      operationId: forgetPassInitiate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgetPasswordInitiateRequest'
+      responses:
+        '200':
+          description: OTP sent to email.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                success: true
+                message: OTP sent to email.
+                data: null
+        '404':
+          description: Email not found.
+  /customer/forgetPass/resend:
+    post:
+      tags:
+        - Customer Management Service (Public)
+      summary: Resend password reset OTP to email
+      operationId: forgetPassResend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgetPasswordInitiateRequest'
+      responses:
+        '200':
+          description: OTP resent successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                success: true
+                message: OTP resent to email.
+                data: null
+        '404':
+          description: Email not found.
+  /customer/forgetPass/confirm:
+    post:
+      tags:
+        - Customer Management Service (Public)
+      summary: Confirm OTP for password reset
+      operationId: forgetPassConfirm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgetPasswordConfirmRequest'
+      responses:
+        '200':
+          description: OTP confirmed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                success: true
+                message: OTP confirmed. You can now reset your password.
+                data: null
+        '400':
+          description: Invalid or expired OTP or session.
+  /customer/forgetPass/reset:
+    post:
+      tags:
+        - Customer Management Service (Public)
+      summary: Reset password using confirmed session
+      operationId: forgetPassReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '200':
+          description: Password reset successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                success: true
+                message: Password reset successfully.
+                data: null
+        '400':
+          description: OTP confirmation is required or invalid input.
+        '404':
+          description: Email not found.
+  /customer/changePass:
+    post:
+      tags:
+        - Customer Management Service (Auth Required)
+      summary: Change password for authenticated user
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                success: true
+                message: Password changed successfully.
+                data: null
+        '400':
+          description: Invalid input (e.g., missing fields, new password equals old password).
+        '401':
+          description: Invalid current password.
+  /customer/info:
+    get:
+      tags:
+        - Customer Management Service (Auth Required)
+      summary: Get current user's personal info
+      operationId: getCurrentUserInfo
+      responses:
+        '200':
+          description: Successfully retrieved info.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Customer'
+        '401':
+          description: Unauthorized (JWT Cookie missing or invalid/expired).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                success: false
+                message: Invalid authentication credentials
+                data: null
+    post:
+      tags:
+        - Customer Management Service (Auth Required)
+      summary: Update current user's personal info
+      operationId: updateCurrentUserInfo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomerInfoRequest'
+      responses:
+        '200':
+          description: Update successful.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Customer'
+        '400':
+          description: Invalid input data (e.g., missing fields, email/phone already exists).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              examples:
+                missingFields:
+                  value:
+                    success: false
+                    message: Full name, email, and avatar color are required.
+                emailInUse:
+                  value:
+                    success: false
+                    message: Email already in use.
+        '401':
+          description: Unauthorized.
+  /customer/info/customerId/{customerId}:
+    get:
+      tags:
+        - Customer Management Service (Auth Required)
+      summary: Get detailed Customer info by ID
+      operationId: getCustomerInfoById
+      parameters:
+        - in: path
+          name: customerId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully retrieved info.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Customer'
+        '404':
+          description: Customer does not exist.
+        '401':
+          description: Unauthorized.
+  /customer/fullName/customerId/{customerId}:
+    get:
+      tags:
+        - Customer Management Service (Auth Required)
+      summary: Get Customer's Full Name by ID (Used by Chat Command Service)
+      operationId: getCustomerFullNameById
+      parameters:
+        - in: path
+          name: customerId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully retrieved name.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: string
+                        example: Vũ Thanh Hải
+        '404':
+          description: Customer does not exist.
+  /customer/info/phoneNumber/{phoneNumber}:
+    get:
+      tags:
+        - Customer Management Service (Auth Required)
+      summary: Search Customer by phone number (Contains)
+      operationId: searchCustomerByPhoneNumber
+      parameters:
+        - in: path
+          name: phoneNumber
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of found Customers (can be empty).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Customer'
+        '400':
+          description: Phone number missing.
+        '401':
+          description: Unauthorized.
+  /customer/info/fullName/{fullName}:
+    get:
+      tags:
+        - Customer Management Service (Auth Required)
+      summary: Search Customer by Full Name (Contains)
+      operationId: searchCustomerByFullName
+      parameters:
+        - in: path
+          name: fullName
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of found Customers (can be empty).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Customer'
+        '400':
+          description: Full name missing.
+        '401':
+          description: Unauthorized.
+          
+  # =================================================================
+  # CHAT COMMAND ENDPOINTS (Auth Required, Writes to PostgreSQL/Kafka)
+  # =================================================================
+  /command/room:
+    post:
+      tags:
+        - Chat Command Service (Write)
+      summary: Create a new chat room
+      operationId: createRoom
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoomRequest'
+      responses:
+        '200':
+          description: Room created successfully. Returns the new room ID.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: integer
+                        format: int64
+                        description: Newly created Room ID.
+                        example: 1
+        '400':
+          description: Invalid input data (e.g., missing room name, missing members, creator ID in target list).
+        '401':
+          description: Unauthorized.
+        '500':
+          description: Internal server error.
+  /command/message:
+    post:
+      tags:
+        - Chat Command Service (Write)
+      summary: Send a new message to the room
+      operationId: sendMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '200':
+          description: Message command processed and Kafka event published successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                success: true
+                message: Message command (Write) processed and event published successfully.
+                data: null
+        '400':
+          description: Missing roomId or content.
+        '401':
+          description: Unauthorized.
+        '403':
+          description: User is not a member of the room (Forbidden).
+        '500':
+          description: Internal server error.
+  /command/read:
+    post:
+      tags:
+        - Chat Command Service (Write)
+      summary: Update Read Marker
+      operationId: updateReadMarker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReadMarkerRequest'
+      responses:
+        '200':
+          description: Read Marker command processed and Kafka event published successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                success: true
+                message: Read Marker command (Write) processed and event published successfully.
+                data: null
+        '400':
+          description: Missing roomId or messageId.
+        '401':
+          description: Unauthorized.
+        '403':
+          description: User is not a member of the room (Forbidden).
+        '500':
+          description: Internal server error.
+
+  # =================================================================
+  # CHAT QUERY ENDPOINTS (Auth Required, Reads from MongoDB/Redis)
+  # =================================================================
+  /query/rooms:
+    get:
+      tags:
+        - Chat Query Service (Read)
+      summary: Get list of chat rooms for current user
+      operationId: getRoomsForCurrentUser
+      responses:
+        '200':
+          description: List of rooms retrieved successfully (sorted by `updatedAt`).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ChatRoomView'
+        '401':
+          description: Unauthorized.
+  /query/message/roomId/{roomId}:
+    get:
+      tags:
+        - Chat Query Service (Read)
+      summary: Get the latest 20 messages of a room
+      operationId: getLatestMessages
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of messages (from newest to oldest).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MessageDocument'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: User is not a member of the room (Forbidden).
+        '500':
+          description: An internal error occurred.
+  /query/message/roomId/{roomId}/index/{indexMessageId}:
+    get:
+      tags:
+        - Chat Query Service (Read)
+      summary: Get batch of older messages (pagination)
+      operationId: getNextMessagesByIndex
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - in: path
+          name: indexMessageId
+          required: true
+          schema:
+            type: integer
+            format: int64
+            description: ID of the OLDEST message currently on the client.
+      responses:
+        '200':
+          description: List of older messages (20 items, messageId < indexMessageId).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MessageDocument'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: User is not a member of the room (Forbidden).
+        '500':
+          description: An internal error occurred.
+  /query/onlineStatus/roomId/{roomId}:
+    get:
+      tags:
+        - Chat Query Service (Read)
+      summary: Get online status of all members in a room
+      operationId: getOnlineStatusByRoom
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of online statuses.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/UserOnlineStatus'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: User is not a member of the room (Forbidden).
+        '404':
+          description: Room does not exist.
+        '500':
+          description: An internal error occurred.
+  /query/readMarkers/roomId/{roomId}:
+    get:
+      tags:
+        - Chat Query Service (Read)
+      summary: Get all Read Markers of a room
+      operationId: getReadMarkersByRoomId
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of Read Markers.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ReadMarker'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: User is not a member of the room (Forbidden).
+        '500':
+          description: An internal error occurred while fetching read markers.
+
+  # =================================================================
+  # INTERNAL ENDPOINTS (Service-to-Service Use Only)
+  # NOTE: Các endpoint này được sử dụng nội bộ bởi các service (ví dụ: WebSocket Service gọi Chat Query Service).
+  # Chúng được bảo vệ bằng Spring Security's GatewayAuthFilter bên trong service.
+  # =================================================================
+  /internal/rooms/customerId/{customerId}:
+    get:
+      tags:
+        - Chat Query Service (Internal Use Only)
+      summary: Get list of chat rooms for a specific customer ID (Internal Use Only)
+      operationId: getRoomsByCustomerIdInternal
+      parameters:
+        - in: path
+          name: customerId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully retrieved rooms for internal consumption.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ChatRoomView'
+        '500':
+          description: An internal error occurred.
+  /internal/valid/roomId/{roomId}/customerId/{customerId}:
+    get:
+      tags:
+        - Chat Query Service (Internal Use Only)
+      summary: Check if a customer is a participant of a room (Internal Use Only)
+      operationId: isParticipantOfRoomInternal
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - in: path
+          name: customerId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Returns success=true if the customer is a participant, or success=false otherwise.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: boolean
+                        example: true
+        '500':
+          description: An internal error occurred.
+  # --- OTP Service Internal Endpoints ---
+  /internal/generate/email:
+    post:
+      tags:
+        - OTP Service (Internal Use Only)
+      summary: Generate OTP (Internal Use Only)
+      operationId: generateOtpByEmailInternal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpEmailRequest'
+      responses:
+        '200':
+          description: OTP generated successfully.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OtpGenerateResponseData'
+        '400':
+          description: Invalid request.
+        '500':
+          description: Internal server error.
+  /internal/resend/email:
+    post:
+      tags:
+        - OTP Service (Internal Use Only)
+      summary: Resend OTP (Internal Use Only)
+      operationId: resendOtpByEmailInternal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpEmailRequest'
+      responses:
+        '200':
+          description: OTP resent successfully.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/GenericResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OtpGenerateResponseData'
+        '400':
+          description: Invalid request.
+        '500':
+          description: Internal server error.
+  /internal/validate/email:
+    post:
+      tags:
+        - OTP Service (Internal Use Only)
+      summary: Validate OTP (Internal Use Only)
+      operationId: validateOtpByEmailInternal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpEmailValidateRequest'
+      responses:
+        '200':
+          description: OTP validated successfully or not.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                success: true
+                message: OTP validated successfully.
+                data: null
+        '400':
+          description: Invalid request.
+        '500':
+          description: Internal server error.
+  # --- Mail Service Internal Endpoint ---
+  /internal/send:
+    post:
+      tags:
+        - Mail Service (Internal Use Only)
+      summary: Send a simple email (Internal Use Only)
+      operationId: sendMailInternal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMailRequest'
+      responses:
+        '200':
+          description: Email sent successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+              example:
+                success: true
+                message: Email sent successfully.
+                data: null
+        '400':
+          description: Invalid request.
+        '500':
+          description: Failed to send email.
