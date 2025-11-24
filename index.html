@@ -943,6 +943,17 @@
                     messagePagination.clear();
                     currentRoomOnlineStatus = [];
                     
+                    // Reset UI về trạng thái mặc định
+                    welcomeMessage.classList.remove('hidden');
+                    activeChat.classList.add('hidden');
+                    roomList.innerHTML = '';
+                    messageList.innerHTML = '';
+                    
+                    // Xóa selection của các phòng
+                    document.querySelectorAll('.room-item.selected').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    
                     // Quay về trang đăng nhập
                     showPage('login-page');
                     loginForm.reset();
@@ -2363,6 +2374,17 @@
                     roomSubscriptions = {};
                     messagePagination.clear();
                     currentRoomOnlineStatus = [];
+                    
+                    // Reset UI về trạng thái mặc định
+                    welcomeMessage.classList.remove('hidden');
+                    activeChat.classList.add('hidden');
+                    roomList.innerHTML = '';
+                    messageList.innerHTML = '';
+                    
+                    // Xóa selection của các phòng
+                    document.querySelectorAll('.room-item.selected').forEach(item => {
+                        item.classList.remove('selected');
+                    });
                     
                     // Quay về trang đăng nhập
                     showPage('login-page');

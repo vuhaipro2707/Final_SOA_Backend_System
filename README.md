@@ -1,4 +1,4 @@
-# **Chat Application API Gateway (SOA/CQRS)**
+# **Chat Application (SOA/CQRS)**
 
 This repository contains a comprehensive backend implementation for a real-time chat application leveraging **Service-Oriented Architecture (SOA)** with **Command Query Responsibility Segregation (CQRS)** pattern and event-driven communication via Apache Kafka.
 
@@ -97,6 +97,8 @@ Pre-seeded accounts (created by Auth Service DataInitializer):
 | `user2` | `1234` | 2 | Test user 2 |
 | `user3` | `12345` | 3 | Test user 3 |
 
+
+---
 
 ## **🔐 Authentication & Security**
 
@@ -314,10 +316,10 @@ The chat system implements **CQRS** (Command Query Responsibility Segregation) f
 
 ### **Benefits of CQRS**
 
-✅ **Scalability**: Read and write sides can scale independently  
-✅ **Performance**: Read models optimized for specific query patterns  
-✅ **Flexibility**: Different data stores for different needs (PostgreSQL for consistency, MongoDB for performance)  
-✅ **Resilience**: Asynchronous processing via Kafka ensures loose coupling  
+✅ **Scalability**: Read and write sides can scale independently
+✅ **Performance**: Read models optimized for specific query patterns
+✅ **Flexibility**: Different data stores for different needs (PostgreSQL for consistency, MongoDB for performance)
+✅ **Resilience**: Asynchronous processing via Kafka ensures loose coupling
 ✅ **Audit Trail**: All changes captured as events in Kafka
 
 ---
